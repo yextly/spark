@@ -8,4 +8,10 @@ RUN export ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n 
     && curl -LO ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH} \
     && chmod +x operator-sdk_${OS}_${ARCH} && mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk
 
+RUN go env -w GOPROXY=https://proxy.golang.org,direct
+
+RUN mkdir -p /usr/local/share/ca-certificates/netskope
+COPY ./certs/* /usr/local/share/ca-certificates/netskope
+RUN update-ca-certificates
+
 ENTRYPOINT ["/bin/bash"]
