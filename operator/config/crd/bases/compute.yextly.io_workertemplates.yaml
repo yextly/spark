@@ -39,7 +39,7 @@ spec:
           spec:
             description: WorkerTemplateSpec defines the desired state of WorkerTemplate.
             properties:
-              spec:
+              template:
                 description: PodSpec is a description of a pod.
                 properties:
                   activeDeadlineSeconds:
@@ -8023,7 +8023,7 @@ spec:
                 - containers
                 type: object
             required:
-            - spec
+            - template
             type: object
           status:
             description: WorkerTemplateStatus defines the observed state of WorkerTemplate.

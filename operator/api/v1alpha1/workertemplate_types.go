@@ -27,7 +27,7 @@ import (
 // WorkerTemplateSpec defines the desired state of WorkerTemplate.
 type WorkerTemplateSpec struct {
 	// +kubebuilder:validation:Required
-	Spec v1.PodSpec `json:"spec,omitempty"`
+	Template v1.PodSpec `json:"template,omitempty"`
 }
 
 // WorkerTemplateStatus defines the observed state of WorkerTemplate.
