@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -26,8 +26,10 @@ import (
 
 // WorkerTemplateSpec defines the desired state of WorkerTemplate.
 type WorkerTemplateSpec struct {
+	// Specification of the desired behavior of the pod in the form of a PodSpec.
 	// +kubebuilder:validation:Required
-	Template v1.PodSpec `json:"template,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Template runtime.RawExtension `json:"template,omitempty"`
 }
 
 // WorkerTemplateStatus defines the observed state of WorkerTemplate.
