@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- compute_v1alpha1_workertemplate.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
