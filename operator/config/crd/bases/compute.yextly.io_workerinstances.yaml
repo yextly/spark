@@ -39,17 +39,21 @@ spec:
           spec:
             description: WorkerInstanceSpec defines the desired state of WorkerInstance.
             properties:
-              name:
+              templateName:
+                description: Specifies the name of the template to use
+                type: string
+              workerId:
                 description: Specifies the unique identifier of the worker that will
                   be used for Job scheduling
                 type: string
             required:
-            - name
+            - templateName
+            - workerId
             type: object
           status:
             description: WorkerInstanceStatus defines the observed state of WorkerInstance.
             properties:
-              name:
+              jobName:
                 type: string
             type: object
         type: object

@@ -49,9 +49,6 @@ spec:
             type: object
           status:
             description: WorkerTemplateStatus defines the observed state of WorkerTemplate.
-            properties:
-              jobInstanceId:
-                type: string
             type: object
         type: object
     served: true
