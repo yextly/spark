@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -119,7 +120,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			logger.Error(err, "Failed to schedule the instance")
 
-			return ctrl.Result{}, err
+			return ctrl.Result{RequeueAfter: 1 * time.Second}, err
 		}
 
 		instance.Status.JobName = jobInstance.Name
@@ -223,6 +224,8 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 	}
 
 	job.ObjectMeta.Annotations["jobAnnotationName"] = instance.Name
+
+	logger.Info("Abot to schedule the job", "job", job)
 
 	err = r.Client.Create(ctx, job)
 	if err != nil {
