@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -287,6 +288,8 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 	job.ObjectMeta.GenerateName = ""
 	job.ObjectMeta.Name = sanitizedWorkerId
 	job.ObjectMeta.Namespace = instance.Namespace
+
+	job.Spec.Template.Spec.RestartPolicy = v1.RestartPolicyNever
 
 	if job.ObjectMeta.Annotations == nil {
 		job.ObjectMeta.Annotations = make(map[string]string)

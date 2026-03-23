@@ -40,7 +40,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 	Context("When reconciling a resource", func() {
 
 		const resourceName = "test-resource"
-		const templateName = "tmpl1"
+		const templateName = "template1"
 
 		ctx := context.Background()
 		workerinstance := &computev1alpha1.WorkerInstance{}
@@ -57,7 +57,6 @@ var _ = Describe("WorkerInstance Controller", func() {
 				Spec: batchv1.JobSpec{
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
-							RestartPolicy: corev1.RestartPolicyNever,
 							Containers: []corev1.Container{{
 								Name:  "main",
 								Image: "busybox",
@@ -70,7 +69,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 			raw, err := json.Marshal(jobTemplate)
 			Expect(err).ToNot(HaveOccurred())
 
-			tmpl := &computev1alpha1.WorkerTemplate{
+			template := &computev1alpha1.WorkerTemplate{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      templateName,
 					Namespace: "default",
@@ -80,7 +79,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(ctx, tmpl)).To(Succeed())
+			Expect(k8sClient.Create(ctx, template)).To(Succeed())
 
 			//
 			// Create WorkerInstance resource
