@@ -28,18 +28,22 @@ type WorkerInstanceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// Specifies the name of the template to use
+	// +kubebuilder:validation:Required
+	TemplateName string `json:"templateName,omitempty"`
+
 	// Specifies the unique identifier of the worker that will be used for Job scheduling
 	// +kubebuilder:validation:Required
-	WorkerId string `json:"name,omitempty"`
+	WorkerId string `json:"workerId,omitempty"`
 }
 
 // WorkerInstanceStatus defines the observed state of WorkerInstance.
 type WorkerInstanceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	
+
 	// +kubebuilder:validation:Optional
-	JobName string `json:"name,omitempty"`
+	JobName string `json:"jobName,omitempty"`
 }
 
 // +kubebuilder:object:root=true

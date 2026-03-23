@@ -18,9 +18,16 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+
+	batchv1 "k8s.io/api/batch/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	"spark/api/v1alpha1"
 	computev1alpha1 "spark/api/v1alpha1"
 )
 
@@ -38,6 +46,7 @@ type WorkerInstanceReconciler struct {
 }
 
 const finalizerName = "workerinstance.compute.yextly.io"
+const jobAnnotationName = "yextly.io/associated-to"
 
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances/status,verbs=get;update;patch
@@ -90,7 +99,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	if instance.Status.JobInstanceId == "" {
+	if instance.Status.JobName == "" {
 		logger.Info("Add finalizer")
 		instance.Finalizers = append(instance.Finalizers, finalizerName)
 		if err := r.Update(ctx, instance); err != nil {
@@ -99,14 +108,21 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 
-		jobInstance, err := scheduleInstance(instance)
+		template, err := r.getTemplate(&logger, ctx, instance.Spec.TemplateName, instance.Namespace)
+		if err != nil {
+			logger.Error(err, "Failed to get the template")
+
+			return ctrl.Result{}, err
+		}
+
+		jobInstance, err := r.scheduleInstance(&logger, ctx, template, instance)
 		if err != nil {
 			logger.Error(err, "Failed to schedule the instance")
 
 			return ctrl.Result{}, err
 		}
 
-		instance.Status.JobInstanceId = jobInstance.Name
+		instance.Status.JobName = jobInstance.Name
 
 		err = r.Status().Update(ctx, instance)
 		if err != nil {
@@ -116,11 +132,26 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 
 	} else {
-		logger.Info("The resource is already bound to a Job", "jobInstanceId", instance.Status.JobInstanceId)
+		logger.Info("The resource is already bound to a Job", "jobInstanceId", instance.Status.JobName)
 		return ctrl.Result{}, nil
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *WorkerInstanceReconciler) getTemplate(logger *logr.Logger, ctx context.Context, name string, namespace string) (*v1alpha1.WorkerTemplate, error) {
+	template := &computev1alpha1.WorkerTemplate{}
+
+	key := client.ObjectKey{
+		Name:      name,
+		Namespace: namespace,
+	}
+
+	if err := r.Client.Get(ctx, key, template); err != nil {
+		logger.Error(err, "The template is not available", "name", name, "namespace", namespace)
+		return nil, err
+	}
+	return template, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -131,6 +162,73 @@ func (r *WorkerInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func scheduleInstance(logger *logr.Logger, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance) (jobInstance *batchv1.Job, err error) {
+// Generates a JobName in such a way that is resistant to collisions and does not violate naming rules. The total length is at worst 60 characters
+func sanitizeWorkerId(input string) (string, string) {
+	s := strings.ToLower(input)
 
+	s = strings.NewReplacer(".", "-", "_", "-").Replace(s)
+
+	// Keep only a-z and '-' and remove everything not allowed
+	reg := regexp.MustCompile(`[^a-z-]`)
+	s = reg.ReplaceAllString(s, "")
+
+	if s == "" {
+		panic("Invalid input string")
+	}
+
+	temp := s
+
+	hashBytes := sha256.Sum256([]byte(temp))
+	hashHex := fmt.Sprintf("%x", hashBytes)
+
+	const maxUserLength = 42
+
+	if len(temp) > maxUserLength {
+		temp = temp[:maxUserLength]
+	}
+
+	final := "worker-" + temp + "-" + hashHex[:10]
+
+	return final, s
+}
+
+func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx context.Context, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance) (jobInstance *batchv1.Job, err error) {
+
+	workerId := instance.Spec.WorkerId
+
+	if workerId == "" {
+		return nil, fmt.Errorf("WorkerId is not set")
+	}
+
+	sanitizedWorkerId, _ := sanitizeWorkerId(workerId)
+
+	var blueprint batchv1.JobTemplateSpec
+
+	if err := json.Unmarshal(template.Spec.Template.Raw, &blueprint); err != nil {
+		logger.Error(err, "Invalid JobTemplateSpec in resource", "name", template.Name)
+
+		return nil, fmt.Errorf("Cannot decode JobTemplateSpec: %w", err)
+	}
+	job := &batchv1.Job{
+		ObjectMeta: blueprint.ObjectMeta,
+		Spec:       blueprint.Spec,
+	}
+
+	job.ObjectMeta.GenerateName = ""
+	job.ObjectMeta.Name = sanitizedWorkerId
+	job.ObjectMeta.Namespace = instance.Namespace
+
+	if job.ObjectMeta.Annotations == nil {
+		job.ObjectMeta.Annotations = make(map[string]string)
+	}
+
+	job.ObjectMeta.Annotations["jobAnnotationName"] = instance.Name
+
+	err = r.Client.Create(ctx, job)
+	if err != nil {
+		logger.Error(err, "Cannot schedule the job")
+		return nil, err
+	}
+
+	return job, nil
 }
