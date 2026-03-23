@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -120,7 +119,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err != nil {
 			logger.Error(err, "Failed to schedule the instance")
 
-			return ctrl.Result{RequeueAfter: 1 * time.Second}, err
+			return ctrl.Result{}, err
 		}
 
 		instance.Status.JobName = jobInstance.Name
