@@ -28,14 +28,18 @@ type WorkerInstanceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of WorkerInstance. Edit workerinstance_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Specifies the unique identifier of the worker that will be used for Job scheduling
+	// +kubebuilder:validation:Required
+	WorkerId string `json:"name,omitempty"`
 }
 
 // WorkerInstanceStatus defines the observed state of WorkerInstance.
 type WorkerInstanceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	
+	// +kubebuilder:validation:Optional
+	JobName string `json:"name,omitempty"`
 }
 
 // +kubebuilder:object:root=true

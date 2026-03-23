@@ -7,6 +7,7 @@ rules:
 - apiGroups:
   - compute.yextly.io
   resources:
+  - workerinstances
   - workertemplates
   verbs:
   - create
@@ -19,12 +20,14 @@ rules:
 - apiGroups:
   - compute.yextly.io
   resources:
+  - workerinstances/finalizers
   - workertemplates/finalizers
   verbs:
   - update
 - apiGroups:
   - compute.yextly.io
   resources:
+  - workerinstances/status
   - workertemplates/status
   verbs:
   - get
