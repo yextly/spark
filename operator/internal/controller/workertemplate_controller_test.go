@@ -18,13 +18,17 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	computev1alpha1 "spark/api/v1alpha1"
@@ -46,12 +50,30 @@ var _ = Describe("WorkerTemplate Controller", func() {
 			By("creating the custom resource for the Kind WorkerTemplate")
 			err := k8sClient.Get(ctx, typeNamespacedName, workertemplate)
 			if err != nil && errors.IsNotFound(err) {
+				jobTemplate := batchv1.JobTemplateSpec{
+					Spec: batchv1.JobSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{{
+									Name:  "main",
+									Image: "busybox",
+								}},
+							},
+						},
+					},
+				}
+
+				raw, err := json.Marshal(jobTemplate)
+				Expect(err).ToNot(HaveOccurred())
+
 				resource := &computev1alpha1.WorkerTemplate{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: computev1alpha1.WorkerTemplateSpec{
+						Template: runtime.RawExtension{Raw: raw},
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
