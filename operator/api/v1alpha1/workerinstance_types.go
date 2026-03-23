@@ -23,6 +23,18 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// WorkerProvisioningState represents the current provisioning state of a worker.
+type WorkerProvisioningState string
+
+const (
+	WorkerProvisioningPending   WorkerProvisioningState = "Pending"
+	WorkerProvisioningCreating  WorkerProvisioningState = "Creating"
+	WorkerProvisioningRunning   WorkerProvisioningState = "Running"
+	WorkerProvisioningDeleting  WorkerProvisioningState = "Deleting"
+	WorkerProvisioningFailed    WorkerProvisioningState = "Failed"
+	WorkerProvisioningSucceeded WorkerProvisioningState = "Succeeded"
+)
+
 // WorkerInstanceSpec defines the desired state of WorkerInstance.
 type WorkerInstanceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -42,8 +54,16 @@ type WorkerInstanceStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	// JobName traces the provisioning of the worker
 	// +kubebuilder:validation:Optional
 	JobName string `json:"jobName,omitempty"`
+
+	// ProvisioningState indicates the current lifecycle phase of the worker.
+	// +kubebuilder:validation:Enum=Pending;Creating;Running;Deleting;Failed;Succeeded
+	ProvisioningState WorkerProvisioningState `json:"provisioningState,omitempty"`
+
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true

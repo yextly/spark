@@ -26,6 +26,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	batchv1 "k8s.io/api/batch/v1"
 
@@ -80,6 +82,22 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Check if we are deleting
 	if !instance.DeletionTimestamp.IsZero() {
 		logger.Info("The instance is being deleted")
+
+		// This will be updated the first time the resource is updated
+		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
+			Type:    string(v1alpha1.WorkerProvisioningDeleting),
+			Status:  metav1.ConditionTrue,
+			Reason:  "InstanceDeletion",
+			Message: "Deleting the instance",
+		})
+		instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningDeleting
+
+		if err := r.Update(ctx, instance); err != nil {
+			logger.Error(err, "Failed to transition the state")
+
+			return ctrl.Result{}, err
+		}
+
 		// _, err := deleteInstance(ctx, instance)
 		// if err != nil {
 		// 	l.Error(err, "Failed to delete instance")
@@ -92,15 +110,24 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err := r.Update(ctx, instance); err != nil {
 			logger.Error(err, "Failed to remove finalizer")
 
-			// Kubernetes will retry with backoff
 			return ctrl.Result{}, err
 		}
 		// At this point, the instance state is terminated and the finalizer is removed
 		return ctrl.Result{}, nil
 	}
 
-	if instance.Status.JobName == "" {
+	if instance.Status.JobName == "" && instance.Status.ProvisioningState != v1alpha1.WorkerProvisioningFailed {
 		logger.Info("Add finalizer")
+
+		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
+			Type:    string(v1alpha1.WorkerProvisioningCreating),
+			Status:  metav1.ConditionTrue,
+			Reason:  "Creating",
+			Message: "Creating the instance",
+		})
+
+		instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningCreating
+
 		instance.Finalizers = append(instance.Finalizers, finalizerName)
 		if err := r.Update(ctx, instance); err != nil {
 			logger.Error(err, "Failed to add the finalizer")
@@ -115,7 +142,31 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 
-		jobInstance, err := r.scheduleInstance(&logger, ctx, template, instance)
+		jobInstance, err, fail := r.scheduleInstance(&logger, ctx, template, instance)
+		if fail {
+			if err != nil {
+				logger.Error(err, "Persistent operation error. No retry will occur")
+			} else {
+				logger.Error(nil, "The operation will not be retried since the error is persistent")
+			}
+
+			meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
+				Type:    string(v1alpha1.WorkerProvisioningFailed),
+				Status:  metav1.ConditionTrue,
+				Reason:  "Failed",
+				Message: "Failed to create the instance",
+			})
+
+			instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningFailed
+
+			if err := r.Update(ctx, instance); err != nil {
+				logger.Error(err, "Failed to update the resource")
+
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
 		if err != nil {
 			logger.Error(err, "Failed to schedule the instance")
 
@@ -124,6 +175,15 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		instance.Status.JobName = jobInstance.Name
 
+		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
+			Type:    string(v1alpha1.WorkerProvisioningRunning),
+			Status:  metav1.ConditionTrue,
+			Reason:  "Failed",
+			Message: "Failed to create the instance",
+		})
+
+		instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningRunning
+
 		err = r.Status().Update(ctx, instance)
 		if err != nil {
 			logger.Error(err, "Failed to update the status")
@@ -131,6 +191,9 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 
+	} else if instance.Status.ProvisioningState == v1alpha1.WorkerProvisioningFailed {
+		logger.Info("The resource is in a failed state, nothing else can be done")
+		return ctrl.Result{}, nil
 	} else {
 		logger.Info("The resource is already bound to a Job", "jobInstanceId", instance.Status.JobName)
 		return ctrl.Result{}, nil
@@ -192,12 +255,12 @@ func sanitizeWorkerId(input string) (string, string) {
 	return final, s
 }
 
-func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx context.Context, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance) (jobInstance *batchv1.Job, err error) {
+func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx context.Context, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance) (jobInstance *batchv1.Job, err error, fail bool) {
 
 	workerId := instance.Spec.WorkerId
 
 	if workerId == "" {
-		return nil, fmt.Errorf("WorkerId is not set")
+		return nil, fmt.Errorf("WorkerId is not set"), false
 	}
 
 	sanitizedWorkerId, _ := sanitizeWorkerId(workerId)
@@ -207,8 +270,15 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 	if err := json.Unmarshal(template.Spec.Template.Raw, &blueprint); err != nil {
 		logger.Error(err, "Invalid JobTemplateSpec in resource", "name", template.Name)
 
-		return nil, fmt.Errorf("Cannot decode JobTemplateSpec: %w", err)
+		return nil, fmt.Errorf("Cannot decode JobTemplateSpec: %w", err), true
 	}
+
+	isValid := naivelyValidateJob(&blueprint)
+
+	if !isValid {
+		return nil, fmt.Errorf("The job specification is not correct"), true
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: blueprint.ObjectMeta,
 		Spec:       blueprint.Spec,
@@ -229,8 +299,16 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 	err = r.Client.Create(ctx, job)
 	if err != nil {
 		logger.Error(err, "Cannot schedule the job")
-		return nil, err
+		return nil, err, false
 	}
 
-	return job, nil
+	return job, nil, false
+}
+
+func naivelyValidateJob(spec *batchv1.JobTemplateSpec) bool {
+	if len(spec.Spec.Template.Spec.Containers) == 0 {
+		return false
+	}
+
+	return true
 }
