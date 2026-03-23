@@ -224,7 +224,7 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 
 	job.ObjectMeta.Annotations["jobAnnotationName"] = instance.Name
 
-	logger.Info("Abot to schedule the job", "job", job)
+	logger.Info("About to schedule the job", "job", job)
 
 	err = r.Client.Create(ctx, job)
 	if err != nil {
