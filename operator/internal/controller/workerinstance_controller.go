@@ -70,7 +70,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	logger.Info(">>> Reconciliation", "namespace", req.Namespace, "name", req.Name)
 
 	instance := &computev1alpha1.WorkerInstance{}
-	// Retrieve the Ec2Instance resource from the Kubernetes API server using the provided request's NamespacedName.
+
 	if err := r.Get(ctx, req.NamespacedName, instance); err != nil {
 		if errors.IsNotFound(err) {
 			logger.Info("The instance has been deleted")
@@ -85,13 +85,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		logger.Info("The instance is being deleted")
 
 		// This will be updated the first time the resource is updated
-		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
-			Type:    string(v1alpha1.WorkerProvisioningDeleting),
-			Status:  metav1.ConditionTrue,
-			Reason:  "InstanceDeletion",
-			Message: "Deleting the instance",
-		})
-		instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningDeleting
+		setCondition(instance, v1alpha1.WorkerProvisioningDeleting, "ResourceDeletion", "Deleting the instance")
 
 		if err := r.Update(ctx, instance); err != nil {
 			logger.Error(err, "Failed to transition the state")
@@ -120,14 +114,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if instance.Status.JobName == "" && instance.Status.ProvisioningState != v1alpha1.WorkerProvisioningFailed {
 		logger.Info("Add finalizer")
 
-		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
-			Type:    string(v1alpha1.WorkerProvisioningCreating),
-			Status:  metav1.ConditionTrue,
-			Reason:  "Creating",
-			Message: "Creating the instance",
-		})
-
-		instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningCreating
+		setCondition(instance, v1alpha1.WorkerProvisioningCreating, "ResourceCreation", "Creating the instance")
 
 		if !controllerutil.ContainsFinalizer(instance, finalizerName) {
 			instance.Finalizers = append(instance.Finalizers, finalizerName)
@@ -153,14 +140,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				logger.Error(nil, "The operation will not be retried since the error is persistent")
 			}
 
-			meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
-				Type:    string(v1alpha1.WorkerProvisioningFailed),
-				Status:  metav1.ConditionTrue,
-				Reason:  "Failed",
-				Message: "Failed to create the instance",
-			})
-
-			instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningFailed
+			setCondition(instance, v1alpha1.WorkerProvisioningFailed, "Failed", "Failed to create the instance")
 
 			if err := r.Update(ctx, instance); err != nil {
 				logger.Error(err, "Failed to update the resource")
@@ -178,14 +158,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		instance.Status.JobName = jobInstance.Name
 
-		meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
-			Type:    string(v1alpha1.WorkerProvisioningRunning),
-			Status:  metav1.ConditionTrue,
-			Reason:  "Failed",
-			Message: "Failed to create the instance",
-		})
-
-		instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningRunning
+		setCondition(instance, v1alpha1.WorkerProvisioningRunning, "JobCreation", "Schedule associated job")
 
 		err = r.Status().Update(ctx, instance)
 		if err != nil {
@@ -193,7 +166,6 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			return ctrl.Result{}, err
 		}
-
 	} else if instance.Status.ProvisioningState == v1alpha1.WorkerProvisioningFailed {
 		logger.Info("The resource is in a failed state, nothing else can be done")
 		return ctrl.Result{}, nil
@@ -203,6 +175,16 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func setCondition(instance *computev1alpha1.WorkerInstance, status computev1alpha1.WorkerProvisioningState, reason string, message string) {
+	meta.SetStatusCondition(&instance.Status.Conditions, metav1.Condition{
+		Type:    string(status),
+		Status:  metav1.ConditionTrue,
+		Reason:  reason,
+		Message: message,
+	})
+	instance.Status.ProvisioningState = status
 }
 
 func (r *WorkerInstanceReconciler) getTemplate(logger *logr.Logger, ctx context.Context, name string, namespace string) (*v1alpha1.WorkerTemplate, error) {
