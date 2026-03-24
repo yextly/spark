@@ -25,6 +25,7 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,12 +43,15 @@ var _ = Describe("WorkerInstance Controller", func() {
 
 		const resourceName = "test-resource"
 		const templateName = "template1"
+		const namespace = "default"
 
 		ctx := context.Background()
-		workerinstance := &computev1alpha1.WorkerInstance{}
+		workerInstance := &computev1alpha1.WorkerInstance{}
+		workerTemplate := &computev1alpha1.WorkerTemplate{}
+
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
-			Namespace: "default",
+			Namespace: namespace,
 		}
 
 		BeforeEach(func() {
@@ -70,10 +74,10 @@ var _ = Describe("WorkerInstance Controller", func() {
 			raw, err := json.Marshal(jobTemplate)
 			Expect(err).ToNot(HaveOccurred())
 
-			template := &computev1alpha1.WorkerTemplate{
+			workerTemplate = &computev1alpha1.WorkerTemplate{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      templateName,
-					Namespace: "default",
+					Namespace: namespace,
 				},
 				Spec: computev1alpha1.WorkerTemplateSpec{
 					Template: runtime.RawExtension{Raw: raw},
@@ -83,18 +87,18 @@ var _ = Describe("WorkerInstance Controller", func() {
 			logger := logf.Log.WithName("Resource")
 			logger.Info("Create resource", "value", "template")
 
-			Expect(k8sClient.Create(ctx, template)).To(Succeed())
+			Expect(k8sClient.Create(ctx, workerTemplate)).To(Succeed())
 
 			//
 			// Create WorkerInstance resource
 			//
 			By("creating the custom resource for the Kind WorkerInstance")
-			err = k8sClient.Get(ctx, typeNamespacedName, workerinstance)
+			err = k8sClient.Get(ctx, typeNamespacedName, workerInstance)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &computev1alpha1.WorkerInstance{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
-						Namespace: "default",
+						Namespace: namespace,
 					},
 					Spec: computev1alpha1.WorkerInstanceSpec{
 						TemplateName: templateName,
@@ -149,10 +153,17 @@ var _ = Describe("WorkerInstance Controller", func() {
 				Expect(
 					k8sClient.Get(ctx, types.NamespacedName{
 						Name:      updated.Status.JobName,
-						Namespace: "default",
+						Namespace: namespace,
 					}, job),
 				).To(Succeed())
+
+				Expect(job.ObjectMeta.Name).To(Equal("aaaaa"))
+				Expect(job.ObjectMeta.Namespace).To(Equal(namespace))
+
+				Expect(job.Spec.Template.Spec.RestartPolicy).To(Equal(v1.RestartPolicyNever))
+				Expect(job.ObjectMeta.Annotations).To(HaveKeyWithValue(jobAnnotationName, workerInstance.Name))
 			}
+
 		})
 	})
 })
