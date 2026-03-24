@@ -48,7 +48,7 @@ type WorkerInstanceReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-const finalizerName = "workerinstance.compute.yextly.io"
+const finalizerName = "compute.yextly.io/workerinstance"
 const jobAnnotationName = "yextly.io/associated-to"
 
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances,verbs=get;list;watch;create;update;patch;delete
