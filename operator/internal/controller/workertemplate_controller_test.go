@@ -72,7 +72,7 @@ var _ = Describe("WorkerTemplate Controller", func() {
 						Namespace: "default",
 					},
 					Spec: computev1alpha1.WorkerTemplateSpec{
-						Template: runtime.RawExtension{Raw: raw},
+						JobTemplate: runtime.RawExtension{Raw: raw},
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())

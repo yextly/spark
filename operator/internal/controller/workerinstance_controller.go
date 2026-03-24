@@ -273,7 +273,7 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 
 	var blueprint batchv1.JobTemplateSpec
 
-	if err := json.Unmarshal(template.Spec.Template.Raw, &blueprint); err != nil {
+	if err := json.Unmarshal(template.Spec.JobTemplate.Raw, &blueprint); err != nil {
 		logger.Error(err, "Invalid JobTemplateSpec in resource", "name", template.Name)
 
 		return nil, fmt.Errorf("Cannot decode JobTemplateSpec: %w", err), true

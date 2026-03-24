@@ -29,7 +29,7 @@ type WorkerTemplateSpec struct {
 	// Specification of the desired behavior of the pod in the form of a PodSpec.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:pruning:PreserveUnknownFields
-	Template runtime.RawExtension `json:"template,omitempty"`
+	JobTemplate runtime.RawExtension `json:"jobTemplate,omitempty"`
 }
 
 // WorkerTemplateStatus defines the observed state of WorkerTemplate.

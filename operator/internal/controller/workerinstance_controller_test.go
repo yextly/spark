@@ -80,7 +80,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 					Namespace: namespace,
 				},
 				Spec: computev1alpha1.WorkerTemplateSpec{
-					Template: runtime.RawExtension{Raw: raw},
+					JobTemplate: runtime.RawExtension{Raw: raw},
 				},
 			}
 
