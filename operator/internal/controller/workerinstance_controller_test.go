@@ -139,7 +139,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 			Expect(k8sClient.Get(ctx, typeNamespacedName, updated)).To(Succeed())
 
 			// Finalizer gets added on first reconcile
-			Expect(updated.Finalizers).To(ContainElement("workerinstance.compute.yextly.io"))
+			Expect(updated.Finalizers).To(ContainElement("compute.yextly.io/workerinstance"))
 
 			// Status should transition to Creating or Running (depending on step)
 			Expect(updated.Status.ProvisioningState).To(BeElementOf(
