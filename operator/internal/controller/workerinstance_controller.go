@@ -28,6 +28,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/record"
+
+	corev1 "k8s.io/api/core/v1"
 
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -45,7 +48,8 @@ import (
 // WorkerInstanceReconciler reconciles a WorkerInstance object
 type WorkerInstanceReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme        *runtime.Scheme
+	EventRecorder record.EventRecorder
 }
 
 const finalizerName = "compute.yextly.io/workerinstance"
@@ -148,6 +152,13 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				return ctrl.Result{}, err
 			}
 
+			r.EventRecorder.Event(
+				template,
+				corev1.EventTypeWarning,
+				"JobSpecInvalid",
+				"The job specification is not correct",
+			)
+
 			return ctrl.Result{}, nil
 		}
 		if err != nil {
@@ -166,6 +177,14 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			return ctrl.Result{}, err
 		}
+
+		r.EventRecorder.Event(
+			instance,
+			corev1.EventTypeNormal,
+			"WorkerReady",
+			"The worker instance has been successfully created",
+		)
+
 	} else if instance.Status.ProvisioningState == v1alpha1.WorkerProvisioningFailed {
 		logger.Info("The resource is in a failed state, nothing else can be done")
 		return ctrl.Result{}, nil
@@ -204,6 +223,8 @@ func (r *WorkerInstanceReconciler) getTemplate(logger *logr.Logger, ctx context.
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *WorkerInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.EventRecorder = mgr.GetEventRecorderFor("workerinstance-controller")
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&computev1alpha1.WorkerInstance{}).
 		Named("workerinstance").
