@@ -129,11 +129,13 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 		instance.Status.ProvisioningState = v1alpha1.WorkerProvisioningCreating
 
-		instance.Finalizers = append(instance.Finalizers, finalizerName)
-		if err := r.Update(ctx, instance); err != nil {
-			logger.Error(err, "Failed to add the finalizer")
+		if !controllerutil.ContainsFinalizer(instance, finalizerName) {
+			instance.Finalizers = append(instance.Finalizers, finalizerName)
+			if err := r.Update(ctx, instance); err != nil {
+				logger.Error(err, "Failed to add the finalizer")
 
-			return ctrl.Result{}, err
+				return ctrl.Result{}, err
+			}
 		}
 
 		template, err := r.getTemplate(&logger, ctx, instance.Spec.TemplateName, instance.Namespace)
