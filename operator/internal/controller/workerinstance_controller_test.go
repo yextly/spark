@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 
 	computev1alpha1 "spark/api/v1alpha1"
 
@@ -122,8 +123,9 @@ var _ = Describe("WorkerInstance Controller", func() {
 			By("Reconciling the created resource")
 
 			controllerReconciler := &WorkerInstanceReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:        k8sClient,
+				Scheme:        k8sClient.Scheme(),
+				EventRecorder: record.NewFakeRecorder(100),
 			}
 
 			// --- Call reconcile  ---
