@@ -223,7 +223,7 @@ func (r *WorkerInstanceReconciler) getTemplate(logger *logr.Logger, ctx context.
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *WorkerInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.EventRecorder = mgr.GetEventRecorderFor("workerinstance-controller")
+	r.EventRecorder = mgr.GetEventRecorderFor("spark operator")
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&computev1alpha1.WorkerInstance{}).
