@@ -102,7 +102,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 					},
 					Spec: computev1alpha1.WorkerInstanceSpec{
 						TemplateName: templateName,
-						WorkerId:     "worker-123",
+						WorkerId:     "abc-def!123",
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
