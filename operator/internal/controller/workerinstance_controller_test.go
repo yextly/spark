@@ -41,7 +41,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 
 	Context("When reconciling a resource", func() {
 
-		const resourceName = "test-resource"
+		const instanceName = "test-resource"
 		const templateName = "template1"
 		const namespace = "default"
 
@@ -50,7 +50,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 		workerTemplate := &computev1alpha1.WorkerTemplate{}
 
 		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
+			Name:      instanceName,
 			Namespace: namespace,
 		}
 
@@ -97,7 +97,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 			if err != nil && errors.IsNotFound(err) {
 				resource := &computev1alpha1.WorkerInstance{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
+						Name:      instanceName,
 						Namespace: namespace,
 					},
 					Spec: computev1alpha1.WorkerInstanceSpec{
@@ -161,7 +161,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 				Expect(job.ObjectMeta.Namespace).To(Equal(namespace))
 
 				Expect(job.Spec.Template.Spec.RestartPolicy).To(Equal(v1.RestartPolicyNever))
-				Expect(job.ObjectMeta.Annotations).To(HaveKeyWithValue(jobAnnotationName, workerInstance.Name))
+				Expect(job.ObjectMeta.Annotations).To(HaveKeyWithValue(jobAnnotationName, instanceName))
 			}
 
 		})
