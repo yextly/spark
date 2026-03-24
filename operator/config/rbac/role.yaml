@@ -1,0 +1,35 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - compute.yextly.io
+  resources:
+  - workerinstances
+  - workertemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - compute.yextly.io
+  resources:
+  - workerinstances/finalizers
+  - workertemplates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - compute.yextly.io
+  resources:
+  - workerinstances/status
+  - workertemplates/status
+  verbs:
+  - get
+  - patch
+  - update

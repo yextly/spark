@@ -1,0 +1,7 @@
+services:
+  builder:
+    build: ./build
+    command: -c "sleep 36000"
+    volumes:
+      - ..:/src:rw
+    restart: always
