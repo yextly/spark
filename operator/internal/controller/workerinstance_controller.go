@@ -266,7 +266,7 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 	workerId := instance.Spec.WorkerId
 
 	if workerId == "" {
-		return nil, fmt.Errorf("WorkerId is not set"), false
+		workerId = instance.Name
 	}
 
 	sanitizedWorkerId, _ := sanitizeWorkerId(workerId)
