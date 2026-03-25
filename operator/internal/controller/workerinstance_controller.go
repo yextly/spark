@@ -261,6 +261,7 @@ func sanitizeWorkerId(input string) (string, string) {
 	return final, s
 }
 
+// Creates and schedules a Job. In case of known failures, "fail" is set. When "fail" is set, **no job is created** by design
 func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx context.Context, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance) (jobInstance *batchv1.Job, err error, fail bool) {
 
 	workerId := instance.Spec.WorkerId
