@@ -116,6 +116,8 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if instance.Status.JobName == "" && instance.Status.ProvisioningState != v1alpha1.WorkerProvisioningFailed {
+		// This is the creation path
+
 		logger.Info("Add finalizer")
 
 		setCondition(instance, v1alpha1.WorkerProvisioningCreating, "ResourceCreation", "Creating the instance")
