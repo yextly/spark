@@ -368,8 +368,8 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 		job.ObjectMeta.Annotations = make(map[string]string)
 	}
 
-	if blueprint.Spec.TTLSecondsAfterFinished != nil {
-		job.Spec.TTLSecondsAfterFinished = blueprint.Spec.TTLSecondsAfterFinished
+	if instance.Spec.TTLSecondsAfterFinished != nil {
+		job.Spec.TTLSecondsAfterFinished = instance.Spec.TTLSecondsAfterFinished
 	}
 
 	job.ObjectMeta.Annotations[jobAnnotationName] = instance.Name
