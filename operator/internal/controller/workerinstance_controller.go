@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,9 +38,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"spark/api/v1alpha1"
 	computev1alpha1 "spark/api/v1alpha1"
@@ -58,6 +63,7 @@ const jobAnnotationName = "yextly.io/associated-to"
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances/finalizers,verbs=update
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -97,14 +103,40 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			return ctrl.Result{}, err
 		}
 
-		// _, err := deleteInstance(ctx, instance)
-		// if err != nil {
-		// 	l.Error(err, "Failed to delete instance")
-		// 	// Kubernetes will retry with backoff
-		// 	return ctrl.Result{Requeue: true}, err
-		// }
+		if instance.Status.JobName != "" {
+			// If we have an assigned job, we must delete it
+			logger.Info("Deleting the associated job", "name", instance.Status.JobName)
 
-		// Remove the finalizer
+			job := &batchv1.Job{}
+			err := r.Get(ctx, types.NamespacedName{
+				Namespace: instance.Namespace,
+				Name:      instance.Status.JobName,
+			}, job)
+
+			if err == nil {
+				// We have a job do delete
+				instance.Status.JobName = ""
+
+				if err := r.Update(ctx, instance); err != nil {
+					logger.Error(err, "Failed to update the resource")
+
+					return ctrl.Result{}, err
+				}
+
+				return ctrl.Result{}, r.Delete(ctx, job)
+			} else if errors.IsNotFound(err) {
+				instance.Status.JobName = ""
+				if err := r.Update(ctx, instance); err != nil {
+					logger.Error(err, "Failed to update the resource")
+
+					return ctrl.Result{}, err
+				}
+			} else {
+				logger.Error(err, "Ignored error")
+			}
+		}
+
+		// Remove the finalizer and allow deletion
 		controllerutil.RemoveFinalizer(instance, finalizerName)
 		if err := r.Update(ctx, instance); err != nil {
 			logger.Error(err, "Failed to remove finalizer")
@@ -115,7 +147,25 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
+	if instance.Status.JobName != "" {
+		// If the job is no longer available, then self delete ourselves
+
+		job := &batchv1.Job{}
+		err := r.Get(ctx, types.NamespacedName{
+			Namespace: instance.Namespace,
+			Name:      instance.Status.JobName,
+		}, job)
+
+		if errors.IsNotFound(err) {
+			logger.Info("The associated Job does no longer exist; deleting WorkerInstance", "job", instance.Status.JobName)
+
+			return ctrl.Result{}, r.Delete(ctx, instance)
+		}
+	}
+
 	if instance.Status.JobName == "" && instance.Status.ProvisioningState != v1alpha1.WorkerProvisioningFailed {
+		// This is the creation path
+
 		logger.Info("Add finalizer")
 
 		setCondition(instance, v1alpha1.WorkerProvisioningCreating, "ResourceCreation", "Creating the instance")
@@ -228,6 +278,23 @@ func (r *WorkerInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&computev1alpha1.WorkerInstance{}).
 		Named("workerinstance").
+		Watches(
+			&batchv1.Job{},
+			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+				job := o.(*batchv1.Job)
+				instanceName, ok := job.Annotations[jobAnnotationName]
+				if !ok {
+					return nil
+				}
+				return []reconcile.Request{{
+					NamespacedName: types.NamespacedName{
+						Namespace: job.Namespace,
+						Name:      instanceName,
+					},
+				}}
+			}),
+			builder.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		Complete(r)
 }
 
@@ -261,12 +328,13 @@ func sanitizeWorkerId(input string) (string, string) {
 	return final, s
 }
 
+// Creates and schedules a Job. In case of known failures, "fail" is set. When "fail" is set, **no job is created** by design
 func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx context.Context, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance) (jobInstance *batchv1.Job, err error, fail bool) {
 
 	workerId := instance.Spec.WorkerId
 
 	if workerId == "" {
-		return nil, fmt.Errorf("WorkerId is not set"), false
+		workerId = instance.Name
 	}
 
 	sanitizedWorkerId, _ := sanitizeWorkerId(workerId)
@@ -298,6 +366,10 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 
 	if job.ObjectMeta.Annotations == nil {
 		job.ObjectMeta.Annotations = make(map[string]string)
+	}
+
+	if instance.Spec.TTLSecondsAfterFinished != nil {
+		job.Spec.TTLSecondsAfterFinished = instance.Spec.TTLSecondsAfterFinished
 	}
 
 	job.ObjectMeta.Annotations[jobAnnotationName] = instance.Name

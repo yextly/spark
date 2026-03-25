@@ -45,8 +45,21 @@ type WorkerInstanceSpec struct {
 	TemplateName string `json:"templateName,omitempty"`
 
 	// Specifies the unique identifier of the worker that will be used for Job scheduling
-	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Optional
 	WorkerId string `json:"workerId,omitempty"`
+
+	// ttlSecondsAfterFinished limits the lifetime of a Worker that has finished
+	// execution (either Complete or Failed). If this field is set,
+	// ttlSecondsAfterFinished after the Worker finishes, it is eligible to be
+	// automatically deleted. When the Worker is being deleted, its lifecycle
+	// guarantees (e.g. finalizers) will be honored. If this field is unset,
+	// the Worker won't be automatically deleted. If this field is set to zero,
+	// the Worker becomes eligible to be deleted immediately after it finishes.
+	// Note that when using the same WorkerId value, no Job is created until the
+	// previous one is deleted; therefore, you specify a value of 0 for the ususal case
+	// and a value greater than 0 to force lingering the Job and allow inspection of the POD
+	// +kubebuilder:validation:Optional
+	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
 }
 
 // WorkerInstanceStatus defines the observed state of WorkerInstance.
