@@ -159,7 +159,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 					}, job),
 				).To(Succeed())
 
-				Expect(job.ObjectMeta.Name).To(Equal("worker-abc-def-abe70a7e80"))
+				Expect(job.ObjectMeta.Name).To(Equal("spark-abc-def-abe70a7e80"))
 				Expect(job.ObjectMeta.Namespace).To(Equal(namespace))
 
 				Expect(job.Spec.Template.Spec.RestartPolicy).To(Equal(v1.RestartPolicyNever))
