@@ -110,14 +110,12 @@ var _ = Describe("WorkerInstance Controller", func() {
 			secret := corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "secret1",
-					Namespace: "useless",
+					Namespace: "willneverexist",
 				},
 				Data: map[string][]byte{
 					"key": []byte("value"),
 				},
 			}
-
-			Expect(k8sClient.Create(ctx, &secret)).To(Succeed())
 
 			//
 			// Create WorkerInstance resource
