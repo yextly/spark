@@ -163,7 +163,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 				Expect(job.ObjectMeta.Namespace).To(Equal(namespace))
 
 				Expect(job.Spec.Template.Spec.RestartPolicy).To(Equal(v1.RestartPolicyNever))
-				Expect(job.ObjectMeta.Annotations).To(HaveKeyWithValue(jobAnnotationName, instanceName))
+				Expect(job.ObjectMeta.Annotations).To(HaveKeyWithValue(associatedToAnnotationName, instanceName))
 			}
 
 		})
