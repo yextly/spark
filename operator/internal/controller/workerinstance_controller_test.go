@@ -206,7 +206,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 						Name: "volume1",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
-								SecretName: "secret1aaaa",
+								SecretName: "spark-abc-def123-secret1-56e21f765a",
 							},
 						},
 					},
