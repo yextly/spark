@@ -79,6 +79,10 @@ const associatedToAnnotationName = "yextly.io/associated-to"
 func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := logf.FromContext(ctx)
 
+	// Note that we are not using OwnedReferences since they use a UID and since we will be hosted by different PODs
+	// and by design we want to upgrade the operator while the cluster is running, we should go on haunt to fix the UID everytime.
+	// The current approach seems good enough for our purposes (at least for now).
+
 	logger.Info(">>> Reconciliation", "namespace", req.Namespace, "name", req.Name)
 
 	instance := &computev1alpha1.WorkerInstance{}
@@ -424,6 +428,8 @@ func (r *WorkerInstanceReconciler) createJob(logger *logr.Logger, ctx context.Co
 
 	job.ObjectMeta.Annotations[associatedToAnnotationName] = instance.Name
 
+	patchSecrets(instance, job)
+
 	logger.Info("About to schedule the job", "job", job)
 
 	err = r.Client.Create(ctx, job)
@@ -433,6 +439,56 @@ func (r *WorkerInstanceReconciler) createJob(logger *logr.Logger, ctx context.Co
 	}
 
 	return job, nil, false
+}
+
+// Patches the secrets in order to be redirected to the remapped and per-instance ones
+func patchSecrets(instance *computev1alpha1.WorkerInstance, job *batchv1.Job) {
+
+	var secrets = instance.Status.SecretMappings
+	if len(secrets) == 0 {
+		return
+	}
+
+	// Volumes could use secrets
+	if volumes := job.Spec.Template.Spec.Volumes; len(volumes) > 0 {
+		for _, volume := range volumes {
+			if s := volume.Secret; s != nil {
+				s.SecretName = remapSecret(secrets, s.SecretName)
+			}
+		}
+	}
+
+	// Env vars could use secrets
+	if containers := job.Spec.Template.Spec.Containers; len(containers) > 0 {
+		for _, container := range containers {
+
+			// EnvFrom in container
+			for _, envFrom := range container.EnvFrom {
+				if s := envFrom.SecretRef; s != nil {
+					s.Name = remapSecret(secrets, s.Name)
+				}
+			}
+
+			// ValueFrom in container environment
+			for _, env := range container.Env {
+				if vf := env.ValueFrom; vf != nil {
+					if skf := vf.SecretKeyRef; skf != nil {
+						skf.Name = remapSecret(secrets, skf.Name)
+					}
+				}
+			}
+		}
+	}
+}
+
+func remapSecret(secrets []computev1alpha1.SecretMapping, name string) string {
+	for _, secret := range secrets {
+		if secret.OriginalSecretName == name {
+			return secret.RemappedSecretName
+		}
+	}
+
+	return name
 }
 
 // Creates the secrets
