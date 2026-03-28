@@ -516,6 +516,13 @@ func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx contex
 
 	for i := actualLength; i < expectedLength; i++ {
 		secret := instance.Spec.Secrets[i]
+
+		if len(secret.Name) == 0 {
+			logger.Error(err, "Invalid secret name")
+
+			return fmt.Errorf("The secret must have a name"), true, nil
+		}
+
 		remappedSecretName, _ := sanitizeWorkerId(fullWorkerId + "-" + secret.Name)
 
 		newSecret := secret.DeepCopy()
