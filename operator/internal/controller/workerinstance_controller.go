@@ -502,12 +502,22 @@ func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx contex
 
 	// We must validate the unicity of the secrets
 	allSecrets := make(map[string]bool)
-	for _, item := range instance.Spec.Secrets {
-		if _, ok := allSecrets[item.Name]; ok {
-			logger.Error(err, "Duplicated secret name", "name", item.Name)
-			return fmt.Errorf("Duplicated secret name"), true, &item
+	deserializedSecrets := make([]v1.Secret, expectedLength)
+
+	for i, item := range instance.Spec.Secrets {
+
+		secret, err := deserializeSecret(item)
+
+		if err != nil {
+			return fmt.Errorf("Invalid secret definition"), true, nil
 		}
-		allSecrets[item.Name] = true
+
+		if _, ok := allSecrets[secret.Name]; ok {
+			logger.Error(err, "Duplicated secret name", "name", secret.Name)
+			return fmt.Errorf("Duplicated secret name"), true, secret
+		}
+		allSecrets[secret.Name] = true
+		deserializedSecrets[i] = *secret
 	}
 
 	if instance.Status.SecretMappings == nil {
@@ -515,7 +525,7 @@ func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx contex
 	}
 
 	for i := actualLength; i < expectedLength; i++ {
-		secret := instance.Spec.Secrets[i]
+		secret := deserializedSecrets[i]
 
 		if len(secret.Name) == 0 {
 			logger.Error(err, "Invalid secret name")
@@ -618,4 +628,14 @@ func isPersistentError(err error) bool {
 	default:
 		return false
 	}
+}
+
+func deserializeSecret(data runtime.RawExtension) (secret *v1.Secret, err error) {
+
+	secret = &v1.Secret{}
+	if err := json.Unmarshal(data.Raw, &secret); err != nil {
+		return nil, err
+	}
+
+	return secret, nil
 }

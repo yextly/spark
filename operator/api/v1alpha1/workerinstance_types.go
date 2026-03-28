@@ -17,8 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -65,7 +65,8 @@ type WorkerInstanceSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/storage/secrets
 	// +optional
 	// +kubebuilder:validation:Optional
-	Secrets []v1.Secret `json:"secrets,omitempty"`
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Secrets []runtime.RawExtension `json:"secrets,omitempty"`
 }
 
 // WorkerInstanceStatus defines the observed state of WorkerInstance.

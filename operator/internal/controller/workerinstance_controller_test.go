@@ -118,6 +118,8 @@ var _ = Describe("WorkerInstance Controller", func() {
 			}
 
 			logger.Info("Create secret", "secret", secret)
+			raw, err = json.Marshal(secret)
+			Expect(err).ToNot(HaveOccurred())
 
 			//
 			// Create WorkerInstance resource
@@ -133,7 +135,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 					Spec: computev1alpha1.WorkerInstanceSpec{
 						TemplateName: templateName,
 						WorkerId:     "abc-def!123",
-						Secrets:      []corev1.Secret{secret},
+						Secrets:      []runtime.RawExtension{runtime.RawExtension{Raw: raw}},
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
