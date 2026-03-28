@@ -117,6 +117,8 @@ var _ = Describe("WorkerInstance Controller", func() {
 				},
 			}
 
+			logger.Info("Create secret", "secret", secret)
+
 			//
 			// Create WorkerInstance resource
 			//
