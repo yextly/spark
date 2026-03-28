@@ -222,6 +222,14 @@ var _ = Describe("WorkerInstance Controller", func() {
 						MountPath: "/var/secrets/secret1",
 					},
 				))
+
+				secret := &v1.Secret{}
+				Expect(
+					k8sClient.Get(ctx, types.NamespacedName{
+						Name:      "spark-abc-def123-secret1-56e21f765a",
+						Namespace: namespace,
+					}, secret),
+				).To(Succeed())
 			}
 		})
 	})
