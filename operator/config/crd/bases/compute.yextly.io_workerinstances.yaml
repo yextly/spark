@@ -101,9 +101,6 @@ spec:
                       type: string
                   type: object
                 type: array
-                x-kubernetes-list-map-keys:
-                - name
-                x-kubernetes-list-type: map
               templateName:
                 description: Specifies the name of the template to use
                 type: string
