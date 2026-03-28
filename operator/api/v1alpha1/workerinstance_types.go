@@ -64,10 +64,6 @@ type WorkerInstanceSpec struct {
 	// List of secrets belonging to the pod.
 	// More info: https://kubernetes.io/docs/concepts/storage/secrets
 	// +optional
-	// +patchMergeKey=name
-	// +patchStrategy=merge,retainKeys
-	// +listType=map
-	// +listMapKey=name
 	// +kubebuilder:validation:Optional
 	Secrets []v1.Secret `json:"secrets,omitempty"`
 }
