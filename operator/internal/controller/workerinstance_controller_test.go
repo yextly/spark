@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	computev1alpha1 "spark/api/v1alpha1"
 
@@ -206,7 +207,8 @@ var _ = Describe("WorkerInstance Controller", func() {
 						Name: "volume1",
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
-								SecretName: "spark-abc-def123-secret1-56e21f765a",
+								SecretName:  "spark-abc-def123-secret1-56e21f765a",
+								DefaultMode: pointer.Int32(420),
 							},
 						},
 					},
