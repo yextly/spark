@@ -71,7 +71,7 @@ type WorkerInstanceSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:ListType=map
 	// +kubebuilder:validation:ListMapKey=name
-	Secrets []v1.Secret `json:"volumes,omitempty" patchStrategy:"merge,retainKeys" patchMergeKey:"name"`
+	Secrets []v1.Secret `json:"secrets,omitempty" patchStrategy:"merge,retainKeys" patchMergeKey:"name"`
 }
 
 // WorkerInstanceStatus defines the observed state of WorkerInstance.
