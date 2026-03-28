@@ -138,6 +138,26 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 		}
 
+		if len(instance.Status.SecretMappings) > 0 {
+			// Delete the secrets
+			for _, s := range instance.Status.SecretMappings {
+				if existingSecret := r.getExistingSecret(ctx, s.RemappedSecretName, instance.Namespace); existingSecret != nil {
+					if err := r.Delete(ctx, existingSecret); err != nil {
+						logger.Error(err, "Failed to delete the secret", "name", existingSecret.ObjectMeta.Name)
+
+						return ctrl.Result{}, err
+					}
+				}
+			}
+
+			instance.Status.SecretMappings = nil
+			if err := r.Update(ctx, instance); err != nil {
+				logger.Error(err, "Failed to update the status")
+
+				return ctrl.Result{}, err
+			}
+		}
+
 		// Remove the finalizer and allow deletion
 		controllerutil.RemoveFinalizer(instance, finalizerName)
 		if err := r.Update(ctx, instance); err != nil {
