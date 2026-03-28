@@ -21,8 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -110,7 +109,7 @@ func (in *WorkerInstanceSpec) DeepCopyInto(out *WorkerInstanceSpec) {
 	}
 	if in.Secrets != nil {
 		in, out := &in.Secrets, &out.Secrets
-		*out = make([]v1.Secret, len(*in))
+		*out = make([]runtime.RawExtension, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -132,7 +131,7 @@ func (in *WorkerInstanceStatus) DeepCopyInto(out *WorkerInstanceStatus) {
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]metav1.Condition, len(*in))
+		*out = make([]v1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
