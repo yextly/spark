@@ -343,7 +343,7 @@ func sanitizeWorkerId(input string) (string, string) {
 		temp = temp[:maxUserLength]
 	}
 
-	final := "worker-" + temp + "-" + hashHex[:10]
+	final := "spark-" + temp + "-" + hashHex[:10]
 
 	return final, s
 }
