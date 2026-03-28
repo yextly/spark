@@ -66,7 +66,24 @@ var _ = Describe("WorkerInstance Controller", func() {
 							Containers: []corev1.Container{{
 								Name:  "main",
 								Image: "busybox",
+								VolumeMounts: []corev1.VolumeMount{
+									{
+										Name:      "volume1",
+										MountPath: "/var/secrets/secret1",
+									},
+								},
 							}},
+
+							Volumes: []corev1.Volume{
+								{
+									Name: "volume1",
+									VolumeSource: corev1.VolumeSource{
+										Secret: &corev1.SecretVolumeSource{
+											SecretName: "secret1",
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -90,6 +107,18 @@ var _ = Describe("WorkerInstance Controller", func() {
 
 			Expect(k8sClient.Create(ctx, workerTemplate)).To(Succeed())
 
+			secret := corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret1",
+					Namespace: "useless",
+				},
+				Data: map[string][]byte{
+					"key": []byte("value"),
+				},
+			}
+
+			Expect(k8sClient.Create(ctx, &secret)).To(Succeed())
+
 			//
 			// Create WorkerInstance resource
 			//
@@ -104,6 +133,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 					Spec: computev1alpha1.WorkerInstanceSpec{
 						TemplateName: templateName,
 						WorkerId:     "abc-def!123",
+						Secrets:      []corev1.Secret{secret},
 					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
@@ -149,8 +179,9 @@ var _ = Describe("WorkerInstance Controller", func() {
 				computev1alpha1.WorkerProvisioningRunning,
 			))
 
-			// If a Job was created, JobName should be populated
-			if updated.Status.JobName != "" {
+			Expect(updated.Status.JobName).ToNot(BeEmpty())
+
+			{
 				job := &batchv1.Job{}
 				Expect(
 					k8sClient.Get(ctx, types.NamespacedName{
@@ -164,8 +195,30 @@ var _ = Describe("WorkerInstance Controller", func() {
 
 				Expect(job.Spec.Template.Spec.RestartPolicy).To(Equal(v1.RestartPolicyNever))
 				Expect(job.ObjectMeta.Annotations).To(HaveKeyWithValue(associatedToAnnotationName, instanceName))
-			}
 
+				podSpec := job.Spec.Template.Spec
+
+				// The volume must have the secret remapped
+				Expect(podSpec.Volumes).To(ContainElement(
+					corev1.Volume{
+						Name: "volume1",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "secret1aaaa",
+							},
+						},
+					},
+				))
+
+				// Volume mount must be preserved
+				container := podSpec.Containers[0]
+				Expect(container.VolumeMounts).To(ContainElement(
+					corev1.VolumeMount{
+						Name:      "volume1",
+						MountPath: "/var/secrets/secret1",
+					},
+				))
+			}
 		})
 	})
 })
