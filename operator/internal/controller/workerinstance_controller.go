@@ -165,6 +165,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			return ctrl.Result{}, err
 		}
+
 		// At this point, the instance state is terminated and the finalizer is removed
 		return ctrl.Result{}, nil
 	}
@@ -223,13 +224,6 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 				return ctrl.Result{}, err
 			}
-
-			r.EventRecorder.Event(
-				template,
-				corev1.EventTypeWarning,
-				"JobSpecInvalid",
-				"The job specification is not correct",
-			)
 
 			return ctrl.Result{}, nil
 		}
@@ -361,11 +355,40 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 
 	sanitizedWorkerId, fullInternalWorkerId := sanitizeWorkerId(workerId)
 
-	err, fail = r.createSecrets(logger, ctx, instance, fullInternalWorkerId)
+	err, fail, faultSecret := r.createSecrets(logger, ctx, instance, fullInternalWorkerId)
 	if err != nil {
+		if fail {
+			r.EventRecorder.Event(
+				faultSecret,
+				corev1.EventTypeWarning,
+				"ScretSpecInvalid",
+				"The secret specification is invalid",
+			)
+		}
+
 		return nil, err, fail
 	}
 
+	job, err, fail := r.createJob(logger, ctx, template, instance, sanitizedWorkerId)
+	if err != nil {
+
+		if fail {
+			r.EventRecorder.Event(
+				template,
+				corev1.EventTypeWarning,
+				"JobSpecInvalid",
+				"The job specification is invalid",
+			)
+		}
+
+		return nil, err, fail
+	}
+
+	return job, nil, false
+}
+
+// Creates the job
+func (r *WorkerInstanceReconciler) createJob(logger *logr.Logger, ctx context.Context, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance, sanitizedWorkerId string) (jobInstance *batchv1.Job, err error, fail bool) {
 	var blueprint batchv1.JobTemplateSpec
 
 	if err := json.Unmarshal(template.Spec.JobTemplate.Raw, &blueprint); err != nil {
@@ -406,19 +429,19 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 	err = r.Client.Create(ctx, job)
 	if err != nil {
 		logger.Error(err, "Cannot schedule the job")
-		return nil, err, false
+		return nil, err, isPersistentError(err)
 	}
 
 	return job, nil, false
 }
 
 // Creates the secrets
-func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx context.Context, instance *computev1alpha1.WorkerInstance, fullWorkerId string) (err error, fail bool) {
+func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx context.Context, instance *computev1alpha1.WorkerInstance, fullWorkerId string) (err error, fail bool, faultSecret *v1.Secret) {
 	expectedLength := len(instance.Spec.Secrets)
 	actualLength := len(instance.Status.SecretMappings)
 
 	if expectedLength == actualLength {
-		return nil, false
+		return nil, false, nil
 	}
 
 	if instance.Status.SecretMappings == nil {
@@ -448,7 +471,7 @@ func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx contex
 			err = r.Client.Create(ctx, newSecret)
 			if err != nil {
 				logger.Error(err, "Cannot create the secret", "name", remappedSecretName)
-				return err, false
+				return err, isPersistentError(err), &secret
 			}
 		}
 
@@ -463,11 +486,11 @@ func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx contex
 		if err != nil {
 			logger.Error(err, "Failed to update the secret status")
 
-			return err, false
+			return err, isPersistentError(err), nil
 		}
 	}
 
-	return nil, false
+	return nil, false, nil
 }
 
 func (r *WorkerInstanceReconciler) getExistingSecret(ctx context.Context, name string, namespace string) (secret *v1.Secret) {
@@ -482,7 +505,6 @@ func (r *WorkerInstanceReconciler) getExistingSecret(ctx context.Context, name s
 	} else {
 		return s
 	}
-
 }
 
 func naivelyValidateJob(spec *batchv1.JobTemplateSpec) bool {
@@ -491,4 +513,36 @@ func naivelyValidateJob(spec *batchv1.JobTemplateSpec) bool {
 	}
 
 	return true
+}
+
+// isPersistentError returns true if the error indicates the request
+// is invalid and retrying will *never* succeed. These are semantic
+// or structural errors that require user action.
+//
+// Returns false for errors that are transient and may succeed if retried.
+func isPersistentError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	switch {
+	// The object is invalid (field validation, schema violation, etc.)
+	case errors.IsInvalid(err):
+		return true
+
+	// The request itself is malformed (bad syntax, wrong types, etc.)
+	case errors.IsBadRequest(err):
+		return true
+
+	// Forbidden usually means RBAC denial. This will not change by retrying.
+	case errors.IsForbidden(err):
+		return true
+
+	// Method not allowed, not supported — retrying won't fix it.
+	case errors.IsMethodNotSupported(err):
+		return true
+
+	default:
+		return false
+	}
 }
