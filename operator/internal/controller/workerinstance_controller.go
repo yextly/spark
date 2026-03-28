@@ -324,8 +324,8 @@ func sanitizeWorkerId(input string) (string, string) {
 
 	s = strings.NewReplacer(".", "-", "_", "-").Replace(s)
 
-	// Keep only a-z and '-' and remove everything not allowed
-	reg := regexp.MustCompile(`[^a-z-]`)
+	// Keep only a-z, 0-9 and '-' and remove everything not allowed
+	reg := regexp.MustCompile(`[^a-z0-9-]`)
 	s = reg.ReplaceAllString(s, "")
 
 	if s == "" {
