@@ -496,8 +496,18 @@ func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx contex
 	expectedLength := len(instance.Spec.Secrets)
 	actualLength := len(instance.Status.SecretMappings)
 
-	if expectedLength == actualLength {
+	if expectedLength == actualLength || expectedLength == 0 {
 		return nil, false, nil
+	}
+
+	// We must validate the unicity of the secrets
+	allSecrets := make(map[string]bool)
+	for _, item := range instance.Spec.Secrets {
+		if _, ok := allSecrets[item.Name]; ok {
+			logger.Error(err, "Duplicated secret name", "name", item.Name)
+			return fmt.Errorf("Duplicated secret name"), true, &item
+		}
+		allSecrets[item.Name] = true
 	}
 
 	if instance.Status.SecretMappings == nil {
