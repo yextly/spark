@@ -89,6 +89,13 @@ jobs:
           make bundle
 
       # -------------------------------
+      # Patch manifests
+      # -------------------------------
+      - name: Patch manifests
+        run: |
+          ./scripts/patch-csv.sh
+
+      # -------------------------------
       # Commit bundle changes (if any)
       # -------------------------------
       - name: Commit changes
