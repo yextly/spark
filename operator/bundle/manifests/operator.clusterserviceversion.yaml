@@ -30,11 +30,11 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-03-29T16:03:06Z"
+    createdAt: "2026-03-29T17:42:20Z"
     operators.operatorframework.io/builder: operator-sdk-v1.42.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: operator.v1.0.0
-  namespace: spark-system
+  namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
@@ -232,5 +232,3 @@ spec:
   provider:
     name: Yextly Group
   version: 1.0.0
-  minKubeVersion: "1.22.0"
-  
