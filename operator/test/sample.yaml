@@ -14,9 +14,28 @@ spec:
       template:
         spec:
           containers:
-            - name: hello-world
+            - name: container1
               image: busybox
-              command: ['echo', 'Hello, World!']
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "It works!";
+                  echo "Secrets:";
+                  for file in /var/secrets/secret1/*; do
+                    key=$(basename "$file")
+                    value=$(cat "$file")
+                    echo "$key: $value"
+                  done
+
+              volumeMounts:
+                - name: volume1
+                  mountPath: /var/secrets/secret1
+                  readOnly: true
+          volumes:
+            - name: volume1
+              secret:
+                secretName: secret1
 ---
 apiVersion: compute.yextly.io/v1alpha1
 kind: WorkerInstance
@@ -26,3 +45,11 @@ metadata:
 spec:
   templateName: worker1
   workerId: aa-bb-cc
+  secrets:
+    - metadata:
+        name: secret1
+      type: Opaque
+      data:
+        key1: dmFsdWUx
+        key2: dmFsdWUy
+
