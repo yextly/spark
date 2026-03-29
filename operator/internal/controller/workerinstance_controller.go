@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/pointer"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -58,12 +59,13 @@ type WorkerInstanceReconciler struct {
 }
 
 const finalizerName = "compute.yextly.io/workerinstance"
-const jobAnnotationName = "yextly.io/associated-to"
+const associatedToAnnotationName = "yextly.io/associated-to"
 
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=compute.yextly.io,resources=workerinstances/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -76,6 +78,10 @@ const jobAnnotationName = "yextly.io/associated-to"
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := logf.FromContext(ctx)
+
+	// Note that we are not using OwnedReferences since they use a UID and since we will be hosted by different PODs
+	// and by design we want to upgrade the operator while the cluster is running, we should go on haunt to fix the UID everytime.
+	// The current approach seems good enough for our purposes (at least for now).
 
 	logger.Info(">>> Reconciliation", "namespace", req.Namespace, "name", req.Name)
 
@@ -136,6 +142,26 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 		}
 
+		if len(instance.Status.SecretMappings) > 0 {
+			// Delete the secrets
+			for _, s := range instance.Status.SecretMappings {
+				if existingSecret := r.getExistingSecret(ctx, s.RemappedSecretName, instance.Namespace); existingSecret != nil {
+					if err := r.Delete(ctx, existingSecret); err != nil {
+						logger.Error(err, "Failed to delete the secret", "name", existingSecret.ObjectMeta.Name)
+
+						return ctrl.Result{}, err
+					}
+				}
+			}
+
+			instance.Status.SecretMappings = nil
+			if err := r.Update(ctx, instance); err != nil {
+				logger.Error(err, "Failed to update the status")
+
+				return ctrl.Result{}, err
+			}
+		}
+
 		// Remove the finalizer and allow deletion
 		controllerutil.RemoveFinalizer(instance, finalizerName)
 		if err := r.Update(ctx, instance); err != nil {
@@ -143,6 +169,7 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			return ctrl.Result{}, err
 		}
+
 		// At this point, the instance state is terminated and the finalizer is removed
 		return ctrl.Result{}, nil
 	}
@@ -201,13 +228,6 @@ func (r *WorkerInstanceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 				return ctrl.Result{}, err
 			}
-
-			r.EventRecorder.Event(
-				template,
-				corev1.EventTypeWarning,
-				"JobSpecInvalid",
-				"The job specification is not correct",
-			)
 
 			return ctrl.Result{}, nil
 		}
@@ -282,7 +302,7 @@ func (r *WorkerInstanceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&batchv1.Job{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 				job := o.(*batchv1.Job)
-				instanceName, ok := job.Annotations[jobAnnotationName]
+				instanceName, ok := job.Annotations[associatedToAnnotationName]
 				if !ok {
 					return nil
 				}
@@ -304,8 +324,8 @@ func sanitizeWorkerId(input string) (string, string) {
 
 	s = strings.NewReplacer(".", "-", "_", "-").Replace(s)
 
-	// Keep only a-z and '-' and remove everything not allowed
-	reg := regexp.MustCompile(`[^a-z-]`)
+	// Keep only a-z, 0-9 and '-' and remove everything not allowed
+	reg := regexp.MustCompile(`[^a-z0-9-]`)
 	s = reg.ReplaceAllString(s, "")
 
 	if s == "" {
@@ -323,7 +343,7 @@ func sanitizeWorkerId(input string) (string, string) {
 		temp = temp[:maxUserLength]
 	}
 
-	final := "worker-" + temp + "-" + hashHex[:10]
+	final := "spark-" + temp + "-" + hashHex[:10]
 
 	return final, s
 }
@@ -337,8 +357,42 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 		workerId = instance.Name
 	}
 
-	sanitizedWorkerId, _ := sanitizeWorkerId(workerId)
+	sanitizedWorkerId, fullInternalWorkerId := sanitizeWorkerId(workerId)
 
+	err, fail, faultSecret := r.createSecrets(logger, ctx, instance, fullInternalWorkerId)
+	if err != nil {
+		if fail {
+			r.EventRecorder.Event(
+				faultSecret,
+				corev1.EventTypeWarning,
+				"SecretSpecInvalid",
+				"The secret specification is invalid",
+			)
+		}
+
+		return nil, err, fail
+	}
+
+	job, err, fail := r.createJob(logger, ctx, template, instance, sanitizedWorkerId)
+	if err != nil {
+
+		if fail {
+			r.EventRecorder.Event(
+				template,
+				corev1.EventTypeWarning,
+				"JobSpecInvalid",
+				"The job specification is invalid",
+			)
+		}
+
+		return nil, err, fail
+	}
+
+	return job, nil, false
+}
+
+// Creates the job
+func (r *WorkerInstanceReconciler) createJob(logger *logr.Logger, ctx context.Context, template *computev1alpha1.WorkerTemplate, instance *computev1alpha1.WorkerInstance, sanitizedWorkerId string) (jobInstance *batchv1.Job, err error, fail bool) {
 	var blueprint batchv1.JobTemplateSpec
 
 	if err := json.Unmarshal(template.Spec.JobTemplate.Raw, &blueprint); err != nil {
@@ -372,17 +426,174 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 		job.Spec.TTLSecondsAfterFinished = instance.Spec.TTLSecondsAfterFinished
 	}
 
-	job.ObjectMeta.Annotations[jobAnnotationName] = instance.Name
+	job.ObjectMeta.Annotations[associatedToAnnotationName] = instance.Name
+
+	patchSecrets(instance, job)
 
 	logger.Info("About to schedule the job", "job", job)
 
 	err = r.Client.Create(ctx, job)
 	if err != nil {
 		logger.Error(err, "Cannot schedule the job")
-		return nil, err, false
+		return nil, err, isPersistentError(err)
 	}
 
 	return job, nil, false
+}
+
+// Patches the secrets in order to be redirected to the remapped and per-instance ones
+func patchSecrets(instance *computev1alpha1.WorkerInstance, job *batchv1.Job) {
+
+	var secrets = instance.Status.SecretMappings
+	if len(secrets) == 0 {
+		return
+	}
+
+	// Volumes could use secrets
+	if volumes := job.Spec.Template.Spec.Volumes; len(volumes) > 0 {
+		for _, volume := range volumes {
+			if s := volume.Secret; s != nil {
+				s.SecretName = remapSecret(secrets, s.SecretName)
+			}
+		}
+	}
+
+	// Env vars could use secrets
+	if containers := job.Spec.Template.Spec.Containers; len(containers) > 0 {
+		for _, container := range containers {
+
+			// EnvFrom in container
+			for _, envFrom := range container.EnvFrom {
+				if s := envFrom.SecretRef; s != nil {
+					s.Name = remapSecret(secrets, s.Name)
+				}
+			}
+
+			// ValueFrom in container environment
+			for _, env := range container.Env {
+				if vf := env.ValueFrom; vf != nil {
+					if skf := vf.SecretKeyRef; skf != nil {
+						skf.Name = remapSecret(secrets, skf.Name)
+					}
+				}
+			}
+		}
+	}
+}
+
+func remapSecret(secrets []computev1alpha1.SecretMapping, name string) string {
+	for _, secret := range secrets {
+		if secret.OriginalSecretName == name {
+			return secret.RemappedSecretName
+		}
+	}
+
+	return name
+}
+
+// Creates the secrets
+func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx context.Context, instance *computev1alpha1.WorkerInstance, fullWorkerId string) (err error, fail bool, faultSecret *v1.Secret) {
+	expectedLength := len(instance.Spec.Secrets)
+	actualLength := len(instance.Status.SecretMappings)
+
+	if expectedLength == actualLength || expectedLength == 0 {
+		return nil, false, nil
+	}
+
+	// We must validate the unicity of the secrets
+	allSecrets := make(map[string]bool)
+	deserializedSecrets := make([]v1.Secret, expectedLength)
+
+	for i, item := range instance.Spec.Secrets {
+
+		secret, err := deserializeSecret(item)
+
+		if err != nil {
+			return fmt.Errorf("Invalid secret definition"), true, nil
+		}
+
+		if _, ok := allSecrets[secret.Name]; ok {
+			logger.Error(err, "Duplicated secret name", "name", secret.Name)
+			return fmt.Errorf("Duplicated secret name"), true, secret
+		}
+		allSecrets[secret.Name] = true
+		deserializedSecrets[i] = *secret
+	}
+
+	if instance.Status.SecretMappings == nil {
+		instance.Status.SecretMappings = make([]computev1alpha1.SecretMapping, 0)
+	}
+
+	for i := actualLength; i < expectedLength; i++ {
+		secret := deserializedSecrets[i]
+
+		if len(secret.Name) == 0 {
+			logger.Error(err, "Invalid secret name")
+
+			return fmt.Errorf("The secret must have a name"), true, nil
+		}
+
+		remappedSecretName, _ := sanitizeWorkerId(fullWorkerId + "-" + secret.Name)
+
+		newSecret := secret.DeepCopy()
+
+		// On purpose create a new meta to avoid attacks
+		newMeta := metav1.ObjectMeta{
+			Name:        remappedSecretName,
+			Namespace:   instance.Namespace,
+			Annotations: make(map[string]string),
+		}
+
+		newMeta.Annotations[associatedToAnnotationName] = instance.Name
+		newSecret.ObjectMeta = newMeta
+
+		// We force immutability to prevent unwanted upgrades
+		newSecret.Immutable = pointer.Bool(true)
+
+		logger.Info("Ensure secret is created", "name", remappedSecretName, "namespace", instance.Namespace)
+
+		if existingSecret := r.getExistingSecret(ctx, remappedSecretName, instance.Namespace); existingSecret == nil {
+			err = r.Client.Create(ctx, newSecret)
+			if err != nil {
+				logger.Error(err, "Cannot create the secret", "name", remappedSecretName)
+				// Here do not pass the new secret since it is a function of the original one.
+				// Pass the original one so the user can clearly understand where the problem is
+				return err, isPersistentError(err), &secret
+			}
+		}
+
+		logger.Info("Secret created", "name", remappedSecretName, "namespace", instance.Namespace)
+
+		mapping := v1alpha1.SecretMapping{
+			OriginalSecretName: secret.Name,
+			RemappedSecretName: remappedSecretName,
+		}
+
+		instance.Status.SecretMappings = append(instance.Status.SecretMappings, mapping)
+
+		err = r.Status().Update(ctx, instance)
+		if err != nil {
+			logger.Error(err, "Failed to update the secret status")
+
+			return err, isPersistentError(err), nil
+		}
+	}
+
+	return nil, false, nil
+}
+
+func (r *WorkerInstanceReconciler) getExistingSecret(ctx context.Context, name string, namespace string) (secret *v1.Secret) {
+	s := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{
+		Namespace: namespace,
+		Name:      name,
+	}, s)
+
+	if err == nil {
+		return s
+	} else {
+		return nil
+	}
 }
 
 func naivelyValidateJob(spec *batchv1.JobTemplateSpec) bool {
@@ -391,4 +602,46 @@ func naivelyValidateJob(spec *batchv1.JobTemplateSpec) bool {
 	}
 
 	return true
+}
+
+// isPersistentError returns true if the error indicates the request
+// is invalid and retrying will *never* succeed. These are semantic
+// or structural errors that require user action.
+//
+// Returns false for errors that are transient and may succeed if retried.
+func isPersistentError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	switch {
+	// The object is invalid (field validation, schema violation, etc.)
+	case errors.IsInvalid(err):
+		return true
+
+	// The request itself is malformed (bad syntax, wrong types, etc.)
+	case errors.IsBadRequest(err):
+		return true
+
+	// Forbidden usually means RBAC denial. This will not change by retrying.
+	case errors.IsForbidden(err):
+		return true
+
+	// Method not allowed, not supported — retrying won't fix it.
+	case errors.IsMethodNotSupported(err):
+		return true
+
+	default:
+		return false
+	}
+}
+
+func deserializeSecret(data runtime.RawExtension) (secret *v1.Secret, err error) {
+
+	secret = &v1.Secret{}
+	if err := json.Unmarshal(data.Raw, &secret); err != nil {
+		return nil, err
+	}
+
+	return secret, nil
 }

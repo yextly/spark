@@ -39,6 +39,15 @@ spec:
           spec:
             description: WorkerInstanceSpec defines the desired state of WorkerInstance.
             properties:
+              secrets:
+                description: |-
+                  List of secrets belonging to the pod.
+                  More info: https://kubernetes.io/docs/concepts/storage/secrets
+                items:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                type: array
+                x-kubernetes-preserve-unknown-fields: true
               templateName:
                 description: Specifies the name of the template to use
                 type: string
@@ -67,6 +76,7 @@ spec:
             description: WorkerInstanceStatus defines the observed state of WorkerInstance.
             properties:
               conditions:
+                description: Conditions traces the conditions of the current instance
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -136,6 +146,25 @@ spec:
                 - Failed
                 - Succeeded
                 type: string
+              secretMappings:
+                description: SecretMappings traces the associations between original
+                  secrets and remapped ones
+                items:
+                  description: SecretMapping traces the association and remapping
+                    of secrets
+                  properties:
+                    originalSecretName:
+                      description: OriginalSecretName contains the secret name before
+                        being remapped
+                      type: string
+                    remappedSecretName:
+                      description: RemappedSecretName contains the secret name after
+                        being remapped
+                      type: string
+                  required:
+                  - originalSecretName
+                  type: object
+                type: array
             type: object
         type: object
     served: true

@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -37,7 +38,6 @@ const (
 
 // WorkerInstanceSpec defines the desired state of WorkerInstance.
 type WorkerInstanceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Specifies the name of the template to use
@@ -60,11 +60,17 @@ type WorkerInstanceSpec struct {
 	// and a value greater than 0 to force lingering the Job and allow inspection of the POD
 	// +kubebuilder:validation:Optional
 	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
+
+	// List of secrets belonging to the pod.
+	// More info: https://kubernetes.io/docs/concepts/storage/secrets
+	// +optional
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Secrets []runtime.RawExtension `json:"secrets,omitempty"`
 }
 
 // WorkerInstanceStatus defines the observed state of WorkerInstance.
 type WorkerInstanceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// JobName traces the provisioning of the worker
@@ -75,8 +81,14 @@ type WorkerInstanceStatus struct {
 	// +kubebuilder:validation:Enum=Pending;Creating;Running;Deleting;Failed;Succeeded
 	ProvisioningState WorkerProvisioningState `json:"provisioningState,omitempty"`
 
+	// Conditions traces the conditions of the current instance
 	// +optional
+	// +kubebuilder:validation:Optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// SecretMappings traces the associations between original secrets and remapped ones
+	// +kubebuilder:validation:Optional
+	SecretMappings []SecretMapping `json:"secretMappings,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -98,6 +110,17 @@ type WorkerInstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []WorkerInstance `json:"items"`
+}
+
+// SecretMapping traces the association and remapping of secrets
+type SecretMapping struct {
+	// OriginalSecretName contains the secret name before being remapped
+	// +kubebuilder:validation:Required
+	OriginalSecretName string `json:"originalSecretName,omitempty"`
+
+	// RemappedSecretName contains the secret name after being remapped
+	// +kubebuilder:validation:Optional
+	RemappedSecretName string `json:"remappedSecretName,omitempty"`
 }
 
 func init() {
