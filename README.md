@@ -12,8 +12,6 @@ This operator is designed for scenarios where multiple, isolated worker Jobs mus
 be scheduled in a controlled, consistent way — such as distributed workloads,
 serverless‑like processing, or per‑request compute workers.
 
----
-
 ## Features
 
 - `Jobs` are identified via a custom per-business identifier used as an ephemeral
