@@ -1,4 +1,4 @@
-name: Build Operator and Push Bundle
+name: Release Operator
 
 on:
   push:
@@ -76,6 +76,13 @@ jobs:
       # -------------------------------
       # Build bundle image
       # -------------------------------
+      - name: Build Bundle
+        run: |
+          make bundle
+          
+      # -------------------------------
+      # Build bundle image
+      # -------------------------------
       - name: Build Operator Bundle Image
         run: |
           make bundle-build
@@ -86,3 +93,27 @@ jobs:
       - name: Push Operator Bundle Image
         run: |
           make bundle-push
+
+      # -------------------------------
+      # Create GitHub Release
+      # -------------------------------
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-github-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # -------------------------------
+      # Upload bundle directory as release assets
+      # -------------------------------
+      - name: Upload operator/bundle content
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: operator/bundle/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
