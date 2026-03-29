@@ -550,13 +550,19 @@ func (r *WorkerInstanceReconciler) createSecrets(logger *logr.Logger, ctx contex
 		// We force immutability to prevent unwanted upgrades
 		newSecret.Immutable = pointer.Bool(true)
 
+		logger.Info("Ensure secret is created", "name", remappedSecretName, "namespace", instance.Namespace)
+
 		if existingSecret := r.getExistingSecret(ctx, remappedSecretName, instance.Namespace); existingSecret == nil {
 			err = r.Client.Create(ctx, newSecret)
 			if err != nil {
 				logger.Error(err, "Cannot create the secret", "name", remappedSecretName)
+				// Here do not pass the new secret since it is a function of the original one.
+				// Pass the original one so the user can clearly understand where the problem is
 				return err, isPersistentError(err), &secret
 			}
 		}
+
+		logger.Info("Secret created", "name", remappedSecretName, "namespace", instance.Namespace)
 
 		mapping := v1alpha1.SecretMapping{
 			OriginalSecretName: secret.Name,
