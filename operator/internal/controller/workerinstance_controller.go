@@ -365,7 +365,7 @@ func (r *WorkerInstanceReconciler) scheduleInstance(logger *logr.Logger, ctx con
 			r.EventRecorder.Event(
 				faultSecret,
 				corev1.EventTypeWarning,
-				"ScretSpecInvalid",
+				"SecretSpecInvalid",
 				"The secret specification is invalid",
 			)
 		}
