@@ -21,3 +21,12 @@ export BUNDLE_IMG=docker.io/$USERNAME/$PROJECTNAME-operator-bundle:$VERSION
 echo "VERSION=$VERSION"
 echo "IMG=$IMG"
 echo "BUNDLE_IMG=$BUNDLE_IMG"
+
+if [ -z "${GITHUB_ENV}" ]; then
+  echo "Suppressed output for github"
+else
+  echo "USERNAME=$USERNAME" >> "$GITHUB_ENV"
+  echo "PROJECTNAME=$PROJECTNAME" >> "$GITHUB_ENV"
+  echo "IMG=$IMG" >> "$GITHUB_ENV"
+  echo "BUNDLE_IMG=$BUNDLE_IMG" >> "$GITHUB_ENV"
+fi

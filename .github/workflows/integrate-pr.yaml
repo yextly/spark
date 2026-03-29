@@ -67,6 +67,7 @@ jobs:
       # -------------------------------
       - name: Update mods
         run: |
+          cd operator
           go mod tidy
           go mod vendor
 
@@ -75,7 +76,8 @@ jobs:
       # -------------------------------
       - name: Generate & bundle
         run: |
-          ./scripts/initialize-environment.sh "${{ steps.operator-version.outputs.version }}"          
+          cd operator
+          ./scripts/initialize-environment.sh "${{ steps.operator-version.outputs.version }}"
           make generate
           make manifests
           make bundle
