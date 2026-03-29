@@ -10,6 +10,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
     kubectl \
     nano \
+    yq \
     && rm -rf /var/lib/apt/lists/*
 
 RUN export ARCH=$(case $(uname -m) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $(uname -m) ;; esac) \

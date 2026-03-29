@@ -17,6 +17,33 @@ jobs:
         uses: actions/checkout@v4
 
       # -------------------------------
+      # Get the operator version from file. Not from the tag
+      # -------------------------------
+      - name: Read operator version
+        id: operator-version
+        run: |
+          VERSION=$(cat version.txt | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # -------------------------------
+      # Ensure we are not making any mistake
+      # -------------------------------
+      - name: Ensure version matches tag
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"   # strip leading 'v'
+          FILE_VERSION="${{ steps.operator-version.outputs.version }}"
+
+          echo "Tag version: $TAG"
+          echo "File version: $FILE_VERSION"
+
+          if [ "$TAG" != "$FILE_VERSION" ]; then
+            echo "❌ Version mismatch! Tag ($TAG) does NOT match version.txt ($FILE_VERSION)"
+            exit 1
+          fi
+
+          echo "✅ Version matches tag."
+
+      # -------------------------------
       # Extract Go version from go.mod
       # -------------------------------
       - name: Read Go version
@@ -55,14 +82,18 @@ jobs:
           sudo mv operator-sdk /usr/local/bin/
 
       # -------------------------------
-      # Prepare initialize-environment.sh
+      # Prepare environment
       # -------------------------------
-      - name: Run initialize-environment.sh with tag
+      - name: Initialize environment
         run: |
-          mkdir -p /tmp/operator
-          cp initialize-environment.sh /tmp/operator/init.sh
-          chmod +x /tmp/operator/init.sh
-          /tmp/operator/init.sh "${GITHUB_REF_NAME}"
+          scripts/initialize-environment.sh "${GITHUB_REF_NAME}"
+
+      # -------------------------------
+      # Validate the pre-versioned bundle
+      # -------------------------------
+      - name: Validate bundle metadata
+        run: |
+          operator-sdk bundle validate operator/bundle --select-optional suite=operatorframework
 
       # -------------------------------
       # Docker login
@@ -76,16 +107,20 @@ jobs:
       # -------------------------------
       # Build bundle image
       # -------------------------------
-      - name: Build Bundle
-        run: |
-          make bundle
-          
-      # -------------------------------
-      # Build bundle image
-      # -------------------------------
       - name: Build Operator Bundle Image
         run: |
           make bundle-build
+
+      # -------------------------------
+      # Generate SBOM using Syft
+      # -------------------------------
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: |
+          syft operator/bundle -o json > /tmp/sbom.json
 
       # -------------------------------
       # Push bundle image
@@ -95,25 +130,44 @@ jobs:
           make bundle-push
 
       # -------------------------------
+      # Create ZIP of bundle directory
+      # -------------------------------
+      - name: Archive bundle directory
+        run: |
+          zip -r /tmp/spark-operator.zip operator/bundle
+
+      # -------------------------------
+      # Generate changelog since previous tag
+      # -------------------------------
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "$(git rev-list --tags --skip=1 --max-count=1)" 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, using initial commit."
+            git log --pretty=format:"- %s" > /tmp/CHANGELOG.md
+          else
+            echo "Previous tag: $PREV_TAG"
+            git log $PREV_TAG..HEAD --pretty=format:"- %s" > /tmp/CHANGELOG.md
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # -------------------------------
       # Create GitHub Release
       # -------------------------------
       - name: Create GitHub Release
-        id: create_release
+        id: release
         uses: softprops/action-github-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # -------------------------------
-      # Upload bundle directory as release assets
-      # -------------------------------
-      - name: Upload operator/bundle content
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: operator/bundle/**
+          body: |
+            ## Changelog
+            ${{ steps.changelog.outputs.changelog }}
+          files: |
+            /tmp/spark-operator.zip
+            /tmp/sbom.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
