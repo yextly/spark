@@ -118,7 +118,7 @@ var _ = Describe("WorkerInstance Controller", func() {
 				},
 			}
 
-			logger.Info("Create secret", "secret", secret)
+			logger.Info("Generate secret for embedding (contains wrong namespace on purpose)", "secret", secret)
 			raw, err = json.Marshal(secret)
 			Expect(err).ToNot(HaveOccurred())
 
