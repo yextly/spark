@@ -75,7 +75,7 @@ jobs:
       # -------------------------------
       - name: Generate & bundle
         run: |
-          ./scripts/initialize-environments.sh "${{ steps.operator-version.outputs.version }}"          
+          ./scripts/initialize-environment.sh "${{ steps.operator-version.outputs.version }}"          
           make generate
           make manifests
           make bundle
