@@ -590,9 +590,9 @@ func (r *WorkerInstanceReconciler) getExistingSecret(ctx context.Context, name s
 	}, s)
 
 	if err == nil {
-		return nil
-	} else {
 		return s
+	} else {
+		return nil
 	}
 }
 
