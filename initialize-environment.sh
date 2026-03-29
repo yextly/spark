@@ -5,8 +5,8 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-VERSION="${1#v}"
-export VERSION="$1"
+INTERNALVERSION="${1#v}"
+export VERSION=$INTERNALVERSION
 
 export USERNAME=yextly
 export PROJECTNAME=spark
