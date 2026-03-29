@@ -57,7 +57,7 @@ jobs:
       - name: Install Operator SDK
         run: |
           curl -sSL \
-            https://github.com/operator-framework/operator-sdk/releases/download/v${{ steps.sdk.outputs.version }}/operator-sdk_linux_amd64 \
+            https://github.com/operator-framework/operator-sdk/releases/download/${{ steps.sdk.outputs.version }}/operator-sdk_linux_amd64 \
             -o operator-sdk
           chmod +x operator-sdk
           sudo mv operator-sdk /usr/local/bin/
