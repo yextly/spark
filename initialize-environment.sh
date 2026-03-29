@@ -12,10 +12,10 @@ export USERNAME=yextly
 export PROJECTNAME=spark
 
 # location where the operator image is hosted
-export IMG=docker.io/$USERNAME/$PROJECTNAME-operator:v$VERSION
+export IMG=docker.io/$USERNAME/$PROJECTNAME-operator:$VERSION
 
 # location where the bundle will be hosted
-export BUNDLE_IMG=docker.io/$USERNAME/$PROJECTNAME-operator-bundle:v$VERSION
+export BUNDLE_IMG=docker.io/$USERNAME/$PROJECTNAME-operator-bundle:$VERSION
 
 
 echo "VERSION=$VERSION"
