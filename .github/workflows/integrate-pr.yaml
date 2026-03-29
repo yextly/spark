@@ -3,7 +3,6 @@ name: Regenerate artifacts
 on:
   push:
     branches: [ "main" ]
-  pull_request:
 
 jobs:
   prepare:
