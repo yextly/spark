@@ -14,7 +14,7 @@ jobs:
       # Checkout repository
       # -------------------------------
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # -------------------------------
       # Get the operator version from file. Not from the tag
