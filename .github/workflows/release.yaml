@@ -86,12 +86,13 @@ jobs:
       # -------------------------------
       - name: Initialize environment
         run: |
-          scripts/initialize-environment.sh "${GITHUB_REF_NAME}"
+          ./scripts/initialize-environment.sh "${GITHUB_REF_NAME}"
 
       # -------------------------------
       # Validate the pre-versioned bundle
       # -------------------------------
       - name: Validate bundle metadata
+        working-directory: operator
         run: |
           operator-sdk bundle validate operator/bundle --select-optional suite=operatorframework
 
@@ -108,8 +109,8 @@ jobs:
       # Build bundle image
       # -------------------------------
       - name: Build Operator Bundle Image
+        working-directory: operator
         run: |
-          cd operator
           make bundle-build
 
       # -------------------------------
@@ -127,8 +128,8 @@ jobs:
       # Push bundle image
       # -------------------------------
       - name: Push Operator Bundle Image
+        working-directory: operator
         run: |
-          cd operator
           make bundle-push
 
       # -------------------------------
