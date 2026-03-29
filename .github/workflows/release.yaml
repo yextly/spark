@@ -1,0 +1,88 @@
+name: Build Operator and Push Bundle
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------
+      # Checkout repository
+      # -------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -------------------------------
+      # Extract Go version from go.mod
+      # -------------------------------
+      - name: Read Go version
+        id: go
+        run: |
+          GOVERSION=$(grep '^go [0-9]' go.mod | awk '{print $2}')
+          echo "version=$GOVERSION" >> $GITHUB_OUTPUT
+
+      # -------------------------------
+      # Set up Go from extracted version
+      # -------------------------------
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+
+      # -------------------------------
+      # Extract Operator SDK version from env/build/Dockerfile
+      # (ARG OPERATOR_SDK_VERSION=x.y.z)
+      # -------------------------------
+      - name: Read Operator SDK version
+        id: sdk
+        run: |
+          SDK=$(grep '^ARG OPERATOR_SDK_VERSION=' env/build/Dockerfile | sed 's/ARG OPERATOR_SDK_VERSION=//')
+          echo "version=$SDK" >> $GITHUB_OUTPUT
+
+      # -------------------------------
+      # Install Operator SDK binary
+      # -------------------------------
+      - name: Install Operator SDK
+        run: |
+          curl -sSL \
+            https://github.com/operator-framework/operator-sdk/releases/download/v${{ steps.sdk.outputs.version }}/operator-sdk_linux_amd64 \
+            -o operator-sdk
+          chmod +x operator-sdk
+          sudo mv operator-sdk /usr/local/bin/
+
+      # -------------------------------
+      # Prepare initialize-environment.sh
+      # -------------------------------
+      - name: Run initialize-environment.sh with tag
+        run: |
+          mkdir -p /tmp/operator
+          cp initialize-environment.sh /tmp/operator/init.sh
+          chmod +x /tmp/operator/init.sh
+          /tmp/operator/init.sh "${GITHUB_REF_NAME}"
+
+      # -------------------------------
+      # Docker login
+      # -------------------------------
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # -------------------------------
+      # Build bundle image
+      # -------------------------------
+      - name: Build Operator Bundle Image
+        run: |
+          make bundle-build
+
+      # -------------------------------
+      # Push bundle image
+      # -------------------------------
+      - name: Push Operator Bundle Image
+        run: |
+          make bundle-push
