@@ -5,6 +5,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+VERSION="${1#v}"
 export VERSION="$1"
 
 export USERNAME=yextly
@@ -15,3 +16,8 @@ export IMG=docker.io/$USERNAME/$PROJECTNAME-operator:v$VERSION
 
 # location where the bundle will be hosted
 export BUNDLE_IMG=docker.io/$USERNAME/$PROJECTNAME-operator-bundle:v$VERSION
+
+
+echo "VERSION=$VERSION"
+echo "IMG=$IMG"
+echo "BUNDLE_IMG=$BUNDLE_IMG"
