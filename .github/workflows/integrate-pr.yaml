@@ -1,0 +1,114 @@
+name: Regenerate artifacts
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------------------------------
+      # Checkout repository
+      # -------------------------------
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # -------------------------------
+      # Get the operator version from file. Not from the tag
+      # -------------------------------
+      - name: Read operator version
+        id: operator-version
+        run: |
+          VERSION=$(cat version.txt | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # -------------------------------
+      # Use Go version from go.mod
+      # -------------------------------
+      - name: Read Go version
+        id: go
+        run: |
+          GOVERSION=$(grep '^go [0-9]' go.mod | awk '{print $2}')
+          echo "version=$GOVERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go.outputs.version }}
+
+      # -------------------------------
+      # Extract Operator SDK version from env/build/Dockerfile
+      # (ARG OPERATOR_SDK_VERSION=x.y.z)
+      # -------------------------------
+      - name: Read Operator SDK version
+        id: sdk
+        run: |
+          SDK=$(grep '^ARG OPERATOR_SDK_VERSION=' env/build/Dockerfile | sed 's/ARG OPERATOR_SDK_VERSION=//')
+          echo "version=$SDK" >> $GITHUB_OUTPUT
+
+      # -------------------------------
+      # Install Operator SDK binary
+      # -------------------------------
+      - name: Install Operator SDK
+        run: |
+          curl -sSL \
+            https://github.com/operator-framework/operator-sdk/releases/download/${{ steps.sdk.outputs.version }}/operator-sdk_linux_amd64 \
+            -o operator-sdk
+          chmod +x operator-sdk
+          sudo mv operator-sdk /usr/local/bin/
+          
+      # -------------------------------
+      # Update mods
+      # -------------------------------
+      - name: Update mods
+        working-directory: operator
+        run: |
+          go mod tidy
+          go mod vendor
+      
+      # -------------------------------
+      # Prepare environment
+      # -------------------------------
+      - name: Initialize environment
+        run: |
+          ./scripts/initialize-environment.sh "${{ steps.operator-version.outputs.version }}"
+
+      # -------------------------------
+      # Regenerate manifests + bundle
+      # -------------------------------
+      - name: Generate & bundle
+        working-directory: operator
+        run: |
+          make generate
+          make manifests
+          make bundle
+
+      # -------------------------------
+      # Patch manifests
+      # -------------------------------
+      - name: Patch manifests
+        run: |
+          ./scripts/patch-csv.sh
+
+      # -------------------------------
+      # Commit bundle changes (if any)
+      # -------------------------------
+      - name: Commit changes
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "Bundle Generator Robot"
+
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update operator bundle"
+            git push origin main
+          fi
