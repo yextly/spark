@@ -4,8 +4,10 @@ on:
   push:
     branches: [ "main" ]
 
+
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   prepare:
@@ -159,7 +161,7 @@ jobs:
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "Codegen Robot"
 
-          LONG_SHA=$(git rev-parse --long HEAD)
+          LONG_SHA=$(git rev-parse HEAD)
           SHORT_SHA=$(git rev-parse --short HEAD)
 
           BRANCH="auto/codegen-artifacts-${SHORT_SHA}"
