@@ -164,7 +164,7 @@ jobs:
           LONG_SHA=$(git rev-parse HEAD)
           SHORT_SHA=$(git rev-parse --short HEAD)
 
-          BRANCH="auto/codegen-artifacts-${SHORT_SHA}"
+          BRANCH="codegen/codegen-artifacts-${SHORT_SHA}"
 
           # Check whether a PR already exists for this branch
           EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty')
