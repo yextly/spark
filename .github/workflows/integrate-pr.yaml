@@ -12,6 +12,11 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.push.outputs.branch }}
+      shortHash: ${{ steps.push.outputs.shortHash }}
+      longHash: ${{ steps.push.outputs.longHash }}
+      existingPR: ${{ steps.push.outputs.existingPR }}
 
     steps:
       # -------------------------------
@@ -151,9 +156,10 @@ jobs:
           fi
 
       # -------------------------------
-      # Create PR if necessary (if any)
+      # Push changes (if any)
       # -------------------------------
-      - name: Create Pull Request
+      - name: Push changes
+        id: push
         if: steps.meaningful.outputs.change != 'no'
         env:
           GH_TOKEN: ${{ github.token }}
