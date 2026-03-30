@@ -1,0 +1,65 @@
+name: Create Codegen PR
+
+on:
+  workflow_run:
+    workflows: ["Regenerate artifacts"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create_pr:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+
+    steps:
+      - name: Extract outputs from previous workflow
+        id: extract
+        run: |
+          echo "branch=${{ github.event.workflow_run.outputs.branch }}" >> $GITHUB_OUTPUT
+          echo "shortHash=${{ github.event.workflow_run.outputs.shortHash }}" >> $GITHUB_OUTPUT
+          echo "longHash=${{ github.event.workflow_run.outputs.longHash }}" >> $GITHUB_OUTPUT
+          echo "existingPR=${{ github.event.workflow_run.outputs.existingPR }}" >> $GITHUB_OUTPUT
+
+      - name: Print outputs (debug)
+        run: |
+          echo "Branch:        ${{ steps.extract.outputs.branch }}"
+          echo "Short hash:    ${{ steps.extract.outputs.shortHash }}"
+          echo "Long hash:     ${{ steps.extract.outputs.longHash }}"
+          echo "Existing PR:   ${{ steps.extract.outputs.existingPR }}"
+
+      - name: Create or update PR
+        if: steps.extract.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+
+          BRANCH="${{ steps.extract.outputs.branch }}"
+          SHORT_SHA="${{ steps.extract.outputs.shortHash }}"
+          LONG_SHA="${{ steps.extract.outputs.longHash }}"
+          EXISTING_PR="${{ steps.extract.outputs.existingPR }}"
+
+          if [ -n "$EXISTING_PR" ]; then
+            PR_NOTE="This is linked to PR #${EXISTING_PR}"
+          else
+            PR_NOTE=""
+          fi
+
+          PR_BODY="Automatically generated artifact updates for revision \`${SHORT_SHA}\`.
+
+          ${PR_NOTE}"
+
+          # Create PR (fallback to edit if it already exists)
+          gh pr create \
+            --title "Regenerate operator artifacts (${SHORT_SHA})" \
+            --body "This PR updates the artifacts for revision \`${LONG_SHA}\`." \
+            --label codegen \
+            --base main \
+            || gh pr edit "$BRANCH" \
+                 --title "Regenerate operator artifacts (${SHORT_SHA})" \
+                 --add-label codegen \
+                 --body "This PR updates the artifacts for revision \`${LONG_SHA}\`."
