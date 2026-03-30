@@ -98,19 +98,105 @@ jobs:
           ./scripts/patch-csv.sh
 
       # -------------------------------
-      # Commit bundle changes (if any)
+      # Detect changes
       # -------------------------------
-      - name: Commit changes
-        if: github.ref == 'refs/heads/main'
+      - name: Detect changes
+        id: meaningful
+        run: |
+          CSV="operator/bundle/manifests/operator.clusterserviceversion.yaml"
+
+          git add .
+
+          STAGED=$(git diff --cached --name-only)
+
+          echo "Staged files:"
+          echo "$STAGED"
+
+          # If no staged files -> nothing to do
+          if [ -z "$STAGED" ]; then
+            echo "no" > meaningful_change
+            exit 0
+          fi
+
+          # If more than one file changed -> meaningful
+          COUNT=$(echo "$STAGED" | wc -l)
+          if [ "$COUNT" -ne 1 ]; then
+            echo "yes" > meaningful_change
+            exit 0
+          fi
+
+          # If the only staged file is not the CSV -> meaningful
+          if [ "$STAGED" != "$CSV" ]; then
+            echo "yes" > meaningful_change
+            exit 0
+          fi
+
+          # At this point: exactly one file changed AND it is the CSV.
+          # Check whether the only changed line contains 'createdAt:'
+          DIFF_LINES=$(git diff --cached -U0 "$CSV" | grep '^[-+]' | grep -v '^---' | grep -v '^+++')
+          
+          echo "Diff lines:"
+          echo "$DIFF_LINES"
+
+          # Extract only the actual changed lines (ignoring file headers)
+          # If ANY changed line does NOT contain createdAt -> meaningful
+          NON_CREATED_AT=$(echo "$DIFF_LINES" | grep -v 'createdAt:' || true)
+
+          if [ -n "$NON_CREATED_AT" ]; then
+            echo "yes" > meaningful_change
+          else
+            echo "no" > meaningful_change
+          fi
+
+      # -------------------------------
+      # Create PR if necessary (if any)
+      # -------------------------------
+      - name: Create Pull Request
+        if: steps.meaningful.outputs.change != 'no'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "Bundle Generator Robot"
+          git config --local user.name "Codegen Robot"
+
+          LONG_SHA=$(git rev-parse --long HEAD)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+
+          BRANCH="auto/codegen-artifacts-${SHORT_SHA}"
+
+          # Check whether a PR already exists for this branch
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            PR_NOTE="This is linked to PR #${EXISTING_PR}"
+          else
+            PR_NOTE=""
+          fi
 
           git add .
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
-          else
-            git commit -m "Update operator bundle"
-            git push origin main
+            exit 0
           fi
+
+          # Create/update branch
+          git checkout -B "$BRANCH"
+          git commit -m "Regenerate artifacts for (${LONG_SHA})"
+          git push --force-with-lease origin "$BRANCH"
+
+
+          PR_BODY="Automatically generated artifact updates for revision \`${SHORT_SHA}\`.
+
+          ${PR_NOTE}"
+
+          # Create PR (fallback to edit if it already exists)
+          gh pr create \
+            --title "Regenerate operator artifacts (${SHORT_SHA})" \
+            --body "This PR updates the artifacts for revision \`${LONG_SHA}\`." \
+            --label codegen \
+            --base main \
+            || gh pr edit "$BRANCH" \
+                 --title "Regenerate operator artifacts (${SHORT_SHA})" \
+                 --add-label codegen \
+                 --body "This PR updates the artifacts for revision \`${LONG}\`."
