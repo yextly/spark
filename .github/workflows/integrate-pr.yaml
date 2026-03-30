@@ -41,7 +41,7 @@ jobs:
           echo "version=$GOVERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -169,12 +169,6 @@ jobs:
           # Check whether a PR already exists for this branch
           EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty')
 
-          if [ -n "$EXISTING_PR" ]; then
-            PR_NOTE="This is linked to PR #${EXISTING_PR}"
-          else
-            PR_NOTE=""
-          fi
-
           git add .
 
           if git diff --cached --quiet; then
@@ -187,18 +181,8 @@ jobs:
           git commit -m "Regenerate artifacts for (${LONG_SHA})"
           git push --force-with-lease origin "$BRANCH"
 
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "shortHash=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "longHash=$LONG_SHA" >> $GITHUB_OUTPUT
+          echo "existingPR=$EXISTING_PR" >> $GITHUB_OUTPUT
 
-          PR_BODY="Automatically generated artifact updates for revision \`${SHORT_SHA}\`.
-
-          ${PR_NOTE}"
-
-          # Create PR (fallback to edit if it already exists)
-          gh pr create \
-            --title "Regenerate operator artifacts (${SHORT_SHA})" \
-            --body "This PR updates the artifacts for revision \`${LONG_SHA}\`." \
-            --label codegen \
-            --base main \
-            || gh pr edit "$BRANCH" \
-                 --title "Regenerate operator artifacts (${SHORT_SHA})" \
-                 --add-label codegen \
-                 --body "This PR updates the artifacts for revision \`${LONG}\`."
