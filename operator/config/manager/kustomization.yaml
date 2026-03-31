@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: docker.io/yextly/spark-operator
-  newTag: v1.0.0
+  newTag: 1.0.2
