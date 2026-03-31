@@ -1,5 +1,8 @@
 name: Regenerate artifacts
 
+env:
+  BRANCH: "codegen/codegen-artifacts"
+
 on:
   push:
     branches: [ "main" ]
@@ -165,17 +168,6 @@ jobs:
           LONG_SHA=$(git rev-parse HEAD)
           SHORT_SHA=$(git rev-parse --short HEAD)
 
-          # Check whether a PR already exists for this branch
-          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty')
-
-          if [ -n "$EXISTING_PR" ]; then
-            PRNUM="$EXISTING_PR"
-          else
-            PRNUM="0"
-          fi
-
-          BRANCH="codegen/codegen-artifacts-${SHORT_SHA}-${PRNUM}"
-
           git add .
 
           if git diff --cached --quiet; then
@@ -185,5 +177,24 @@ jobs:
 
           # Create/update branch
           git checkout -B "$BRANCH"
-          git commit -m "Regenerate artifacts for (${LONG_SHA})"
+          git commit -m "Generate artifacts for (${LONG_SHA})"
           git push --force-with-lease origin "$BRANCH"
+
+      - name: Create or update PR
+        if: steps.meaningful.outputs.change != 'no'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_TITLE="Update generated artifacts"
+          PR_BODY="Updates automatically generated artifacts"
+
+          # Create PR (fallback to edit if it already exists)
+          gh pr create \
+            --title "${PR_TITLE}" \
+            --body "${PR_BODY}" \
+            --label codegen \
+            --base "${BRANCH}" \
+            || gh pr edit "$BRANCH" \
+                 --title "${PR_TITLE}" \
+                 --add-label codegen \
+                 --body "${PR_BODY}"
