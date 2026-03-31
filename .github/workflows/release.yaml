@@ -161,16 +161,35 @@ jobs:
       # Create GitHub Release
       # -------------------------------
       - name: Create GitHub Release
-        id: release
-        uses: softprops/action-github-release@v2
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
-          name: "Release ${{ github.ref_name }}"
+          release_name: "Release ${{ github.ref_name }}"
           body: |
             ## Changelog
             ${{ steps.changelog.outputs.changelog }}
-          files: |
-            /tmp/spark-operator.zip
-            /tmp/sbom.json
+          draft: false
+          prerelease: false
+
+      - name: Upload manifests
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /tmp/spark-operator.zip
+          asset_name: spark-operator.zip
+          asset_content_type: application/zip
+
+      - name: Upload SBOM
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: /tmp/sbom.json
+          asset_name: sbom.json
+          asset_content_type: application/json
