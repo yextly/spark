@@ -15,22 +15,27 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
-
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: codegen-data
+      - uses: actions/checkout@v6
 
       - name: Extract workflow data
         id: extract
         run: |
-          DATA=$(cat outputs.json)
-          echo "branch=$(jq -r .branch <<< \"$DATA\")" >> $GITHUB_OUTPUT
-          echo "shortHash=$(jq -r .shortHash <<< \"$DATA\")" >> $GITHUB_OUTPUT
-          echo "longHash=$(jq -r .longHash <<< \"$DATA\")" >> $GITHUB_OUTPUT
-          echo "existingPR=$(jq -r .existingPR <<< \"$DATA\")" >> $GITHUB_OUTPUT
+          BRANCH="${GITHUB_HEAD_REF:-$(git rev-parse --abbrev-ref HEAD)}"
 
-      - name: Print outputs (debug)
+          # Expected format: codegen/codegen-artifacts-SHA1/7-PR
+          PARTS="${BRANCH##codegen/codegen-artifacts-}"
+          SHORT_SHA="$(echo "$PARTS" | cut -d'-' -f1)"
+          PRNUM="$(echo "$PARTS" | cut -d'-' -f2)"
+
+          LONG_SHA="$(git rev-parse "$SHORT_SHA")"
+
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "shortHash=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "longHash=$LONG_SHA" >> $GITHUB_OUTPUT
+          echo "existingPR=$PRNUM" >> $GITHUB_OUTPUT
+
+      - name: Print outputs
         run: |
           echo "Branch:        ${{ steps.extract.outputs.branch }}"
           echo "Short hash:    ${{ steps.extract.outputs.shortHash }}"
@@ -48,7 +53,7 @@ jobs:
           LONG_SHA="${{ steps.extract.outputs.longHash }}"
           EXISTING_PR="${{ steps.extract.outputs.existingPR }}"
 
-          if [ -n "$EXISTING_PR" ]; then
+          if [ -n "$EXISTING_PR" ] && [ "$EXISTING_PR" != "0" ]; then
             PR_NOTE="This is linked to PR #${EXISTING_PR}"
           else
             PR_NOTE=""

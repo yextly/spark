@@ -165,10 +165,16 @@ jobs:
           LONG_SHA=$(git rev-parse HEAD)
           SHORT_SHA=$(git rev-parse --short HEAD)
 
-          BRANCH="codegen/codegen-artifacts-${SHORT_SHA}"
-
           # Check whether a PR already exists for this branch
           EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            PRNUM="$EXISTING_PR"
+          else
+            PRNUM="0"
+          fi
+
+          BRANCH="codegen/codegen-artifacts-${SHORT_SHA}-${PRNUM}"
 
           git add .
 
@@ -181,25 +187,3 @@ jobs:
           git checkout -B "$BRANCH"
           git commit -m "Regenerate artifacts for (${LONG_SHA})"
           git push --force-with-lease origin "$BRANCH"
-
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-          echo "shortHash=$SHORT_SHA" >> $GITHUB_OUTPUT
-          echo "longHash=$LONG_SHA" >> $GITHUB_OUTPUT
-          echo "existingPR=$EXISTING_PR" >> $GITHUB_OUTPUT
-
-      - name: Save outputs
-        if: steps.push.outputs.branch != ''
-        run: |
-          cat <<EOF > outputs.json
-          {
-            "branch": "${{ steps.push.outputs.branch }}",
-            "shortHash": "${{ steps.push.outputs.shortHash }}",
-            "longHash": "${{ steps.push.outputs.longHash }}",
-            "existingPR": "${{ steps.push.outputs.existingPR }}"
-          }
-          EOF
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: codegen-data
-          path: outputs.json
