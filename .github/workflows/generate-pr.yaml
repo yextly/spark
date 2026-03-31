@@ -17,13 +17,18 @@ jobs:
 
 
     steps:
-      - name: Extract outputs from previous workflow
+      - uses: actions/download-artifact@v4
+        with:
+          name: codegen-data
+
+      - name: Extract workflow data
         id: extract
         run: |
-          echo "branch=${{ github.event.workflow_run.outputs.branch }}" >> $GITHUB_OUTPUT
-          echo "shortHash=${{ github.event.workflow_run.outputs.shortHash }}" >> $GITHUB_OUTPUT
-          echo "longHash=${{ github.event.workflow_run.outputs.longHash }}" >> $GITHUB_OUTPUT
-          echo "existingPR=${{ github.event.workflow_run.outputs.existingPR }}" >> $GITHUB_OUTPUT
+          DATA=$(cat outputs.json)
+          echo "branch=$(jq -r .branch <<< \"$DATA\")" >> $GITHUB_OUTPUT
+          echo "shortHash=$(jq -r .shortHash <<< \"$DATA\")" >> $GITHUB_OUTPUT
+          echo "longHash=$(jq -r .longHash <<< \"$DATA\")" >> $GITHUB_OUTPUT
+          echo "existingPR=$(jq -r .existingPR <<< \"$DATA\")" >> $GITHUB_OUTPUT
 
       - name: Print outputs (debug)
         run: |
@@ -49,17 +54,17 @@ jobs:
             PR_NOTE=""
           fi
 
-          PR_BODY="Automatically generated artifact updates for revision \`${SHORT_SHA}\`.
+          PR_BODY="Automatically generated artifact updates for revision \`${LONG_SHA}\`.
 
           ${PR_NOTE}"
 
           # Create PR (fallback to edit if it already exists)
           gh pr create \
             --title "Regenerate operator artifacts (${SHORT_SHA})" \
-            --body "This PR updates the artifacts for revision \`${LONG_SHA}\`." \
+            --body "${PR_BODY}" \
             --label codegen \
             --base main \
             || gh pr edit "$BRANCH" \
                  --title "Regenerate operator artifacts (${SHORT_SHA})" \
                  --add-label codegen \
-                 --body "This PR updates the artifacts for revision \`${LONG_SHA}\`."
+                 --body "${PR_BODY}"

@@ -12,11 +12,6 @@ permissions:
 jobs:
   prepare:
     runs-on: ubuntu-latest
-    outputs:
-      branch: ${{ steps.push.outputs.branch }}
-      shortHash: ${{ steps.push.outputs.shortHash }}
-      longHash: ${{ steps.push.outputs.longHash }}
-      existingPR: ${{ steps.push.outputs.existingPR }}
 
     steps:
       # -------------------------------
@@ -192,3 +187,19 @@ jobs:
           echo "longHash=$LONG_SHA" >> $GITHUB_OUTPUT
           echo "existingPR=$EXISTING_PR" >> $GITHUB_OUTPUT
 
+      - name: Save outputs
+        if: steps.push.outputs.branch != ''
+        run: |
+          cat <<EOF > outputs.json
+          {
+            "branch": "${{ steps.push.outputs.branch }}",
+            "shortHash": "${{ steps.push.outputs.shortHash }}",
+            "longHash": "${{ steps.push.outputs.longHash }}",
+            "existingPR": "${{ steps.push.outputs.existingPR }}"
+          }
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codegen-data
+          path: outputs.json
