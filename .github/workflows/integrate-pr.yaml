@@ -162,7 +162,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.email "272589547+yextly-ci-codegen-bot[bot]@users.noreply.github.com"
           git config --local user.name "Codegen Robot"
 
           LONG_SHA=$(git rev-parse HEAD)
