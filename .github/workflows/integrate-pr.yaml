@@ -188,12 +188,14 @@ jobs:
           PR_TITLE="Update generated artifacts"
           PR_BODY="Updates automatically generated artifacts"
 
+          BASE='main'
+
           # Create PR (fallback to edit if it already exists)
           gh pr create \
             --title "${PR_TITLE}" \
             --body "${PR_BODY}" \
             --label codegen \
-            --base "${BRANCH}" \
+            --base "${BASE}" \
             || gh pr edit "$BRANCH" \
                  --title "${PR_TITLE}" \
                  --add-label codegen \
