@@ -154,13 +154,24 @@ jobs:
           fi
 
       # -------------------------------
+      # Generate App Token
+      # -------------------------------
+      - name: Generate GitHub App token
+        if: steps.meaningful.outputs.change == 'yes'
+        uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          app-id: ${{ secrets.CODEGEN_APP_ID }}
+          private-key: ${{ secrets.CODEGEN_PRIVATE_KEY }}
+
+      # -------------------------------
       # Push changes (if any)
       # -------------------------------
       - name: Push changes
         id: push
         if: steps.meaningful.outputs.change == 'yes'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git config --local user.email "272589547+yextly-ci-codegen-bot[bot]@users.noreply.github.com"
           git config --local user.name "Codegen Robot"
@@ -179,14 +190,6 @@ jobs:
           git checkout -B "$BRANCH"
           git commit -m "Generate artifacts for (${LONG_SHA})"
           git push --force-with-lease origin "$BRANCH"
-
-      - name: Generate GitHub App token
-        if: steps.meaningful.outputs.change == 'yes'
-        uses: actions/create-github-app-token@v3
-        id: app-token
-        with:
-          app-id: ${{ secrets.CODEGEN_APP_ID }}
-          private-key: ${{ secrets.CODEGEN_PRIVATE_KEY }}
 
       - name: Create or update PR
         if: steps.meaningful.outputs.change == 'yes'
