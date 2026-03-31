@@ -119,26 +119,26 @@ jobs:
 
           # If no staged files -> nothing to do
           if [ -z "$STAGED" ]; then
-            echo "no" > meaningful_change
+            echo "change=no" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # If more than one file changed -> meaningful
           COUNT=$(echo "$STAGED" | wc -l)
           if [ "$COUNT" -ne 1 ]; then
-            echo "yes" > meaningful_change
+            echo "change=yes" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # If the only staged file is not the CSV -> meaningful
           if [ "$STAGED" != "$CSV" ]; then
-            echo "yes" > meaningful_change
+            echo "change=yes" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # At this point: exactly one file changed AND it is the CSV.
           # Check whether the only changed line contains 'createdAt:'
-          DIFF_LINES=$(git diff --cached -U0 "$CSV" | grep '^[-+]' | grep -v '^---' | grep -v '^+++')
+          DIFF_LINES=$(git diff --cached -U0 "$CSV" | grep '^[+-]' | grep -v '^[+-][+-][+-]')
           
           echo "Diff lines:"
           echo "$DIFF_LINES"
@@ -148,9 +148,9 @@ jobs:
           NON_CREATED_AT=$(echo "$DIFF_LINES" | grep -v 'createdAt:' || true)
 
           if [ -n "$NON_CREATED_AT" ]; then
-            echo "yes" > meaningful_change
+            echo "change=yes" >> $GITHUB_OUTPUT
           else
-            echo "no" > meaningful_change
+            echo "change=no" >> $GITHUB_OUTPUT
           fi
 
       # -------------------------------
@@ -158,7 +158,7 @@ jobs:
       # -------------------------------
       - name: Push changes
         id: push
-        if: steps.meaningful.outputs.change != 'no'
+        if: steps.meaningful.outputs.change == 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -181,7 +181,7 @@ jobs:
           git push --force-with-lease origin "$BRANCH"
 
       - name: Generate GitHub App token
-        if: steps.meaningful.outputs.change != 'no'
+        if: steps.meaningful.outputs.change == 'yes'
         uses: actions/create-github-app-token@v3
         id: app-token
         with:
@@ -189,7 +189,7 @@ jobs:
           private-key: ${{ secrets.CODEGEN_PRIVATE_KEY }}
 
       - name: Create or update PR
-        if: steps.meaningful.outputs.change != 'no'
+        if: steps.meaningful.outputs.change == 'yes'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
