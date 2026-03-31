@@ -54,17 +54,17 @@ jobs:
             PR_NOTE=""
           fi
 
-          PR_BODY="Automatically generated artifact updates for revision \`${SHORT_SHA}\`.
+          PR_BODY="Automatically generated artifact updates for revision \`${LONG_SHA}\`.
 
           ${PR_NOTE}"
 
           # Create PR (fallback to edit if it already exists)
           gh pr create \
             --title "Regenerate operator artifacts (${SHORT_SHA})" \
-            --body "This PR updates the artifacts for revision \`${LONG_SHA}\`." \
+            --body "${PR_BODY}" \
             --label codegen \
             --base main \
             || gh pr edit "$BRANCH" \
                  --title "Regenerate operator artifacts (${SHORT_SHA})" \
                  --add-label codegen \
-                 --body "This PR updates the artifacts for revision \`${LONG_SHA}\`."
+                 --body "${PR_BODY}"
