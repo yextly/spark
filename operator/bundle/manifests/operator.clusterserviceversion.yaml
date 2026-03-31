@@ -30,205 +30,206 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-03-29T17:42:20Z"
+    createdAt: "2026-03-31T17:46:49Z"
     operators.operatorframework.io/builder: operator-sdk-v1.42.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: operator.v1.0.0
-  namespace: placeholder
+  name: operator.v0.0.1
+  namespace: spark-operator
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: WorkerInstance is the Schema for the workerinstances API.
-      displayName: Worker Instance
-      kind: WorkerInstance
-      name: workerinstances.compute.yextly.io
-      version: v1alpha1
-    - description: WorkerTemplate is the Schema for the workertemplates API.
-      displayName: Worker Template
-      kind: WorkerTemplate
-      name: workertemplates.compute.yextly.io
-      version: v1alpha1
+      - description: WorkerInstance is the Schema for the workerinstances API.
+        displayName: Worker Instance
+        kind: WorkerInstance
+        name: workerinstances.compute.yextly.io
+        version: v1alpha1
+      - description: WorkerTemplate is the Schema for the workertemplates API.
+        displayName: Worker Template
+        kind: WorkerTemplate
+        name: workertemplates.compute.yextly.io
+        version: v1alpha1
   description: Spark Operator
   displayName: Spark Operator
   icon:
-  - base64data: ""
-    mediatype: ""
+    - base64data: ""
+      mediatype: ""
   install:
     spec:
       clusterPermissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          verbs:
-          - delete
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - batch
-          resources:
-          - jobs
-          verbs:
-          - delete
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - compute.yextly.io
-          resources:
-          - workerinstances
-          - workertemplates
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - compute.yextly.io
-          resources:
-          - workerinstances/finalizers
-          - workertemplates/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - compute.yextly.io
-          resources:
-          - workerinstances/status
-          - workertemplates/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
-          - authentication.k8s.io
-          resources:
-          - tokenreviews
-          verbs:
-          - create
-        - apiGroups:
-          - authorization.k8s.io
-          resources:
-          - subjectaccessreviews
-          verbs:
-          - create
-        serviceAccountName: operator-controller-manager
+        - rules:
+            - apiGroups:
+                - ""
+              resources:
+                - secrets
+              verbs:
+                - delete
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - batch
+              resources:
+                - jobs
+              verbs:
+                - delete
+                - get
+                - list
+                - watch
+            - apiGroups:
+                - compute.yextly.io
+              resources:
+                - workerinstances
+                - workertemplates
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - compute.yextly.io
+              resources:
+                - workerinstances/finalizers
+                - workertemplates/finalizers
+              verbs:
+                - update
+            - apiGroups:
+                - compute.yextly.io
+              resources:
+                - workerinstances/status
+                - workertemplates/status
+              verbs:
+                - get
+                - patch
+                - update
+            - apiGroups:
+                - authentication.k8s.io
+              resources:
+                - tokenreviews
+              verbs:
+                - create
+            - apiGroups:
+                - authorization.k8s.io
+              resources:
+                - subjectaccessreviews
+              verbs:
+                - create
+          serviceAccountName: operator-controller-manager
       deployments:
-      - label:
-          app.kubernetes.io/managed-by: kustomize
-          app.kubernetes.io/name: operator
-          control-plane: controller-manager
-        name: operator-controller-manager
-        spec:
-          replicas: 3
-          selector:
-            matchLabels:
-              app.kubernetes.io/name: operator
-              control-plane: controller-manager
-          strategy: {}
-          template:
-            metadata:
-              annotations:
-                kubectl.kubernetes.io/default-container: manager
-              labels:
+        - label:
+            app.kubernetes.io/managed-by: kustomize
+            app.kubernetes.io/name: operator
+            control-plane: controller-manager
+          name: operator-controller-manager
+          spec:
+            replicas: 3
+            selector:
+              matchLabels:
                 app.kubernetes.io/name: operator
                 control-plane: controller-manager
-            spec:
-              containers:
-              - args:
-                - --metrics-bind-address=:8443
-                - --leader-elect
-                - --health-probe-bind-address=:8081
-                command:
-                - /manager
-                image: docker.io/yextly/spark-operator:v1.0.0
-                livenessProbe:
-                  httpGet:
-                    path: /healthz
-                    port: 8081
-                  initialDelaySeconds: 15
-                  periodSeconds: 20
-                name: manager
-                readinessProbe:
-                  httpGet:
-                    path: /readyz
-                    port: 8081
-                  initialDelaySeconds: 5
-                  periodSeconds: 10
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 10m
-                    memory: 64Mi
+            strategy: {}
+            template:
+              metadata:
+                annotations:
+                  kubectl.kubernetes.io/default-container: manager
+                labels:
+                  app.kubernetes.io/name: operator
+                  control-plane: controller-manager
+              spec:
+                containers:
+                  - args:
+                      - --metrics-bind-address=:8443
+                      - --leader-elect
+                      - --health-probe-bind-address=:8081
+                    command:
+                      - /manager
+                    image: docker.io/yextly/spark-operator:1.0.2
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8081
+                      initialDelaySeconds: 15
+                      periodSeconds: 20
+                    name: manager
+                    readinessProbe:
+                      httpGet:
+                        path: /readyz
+                        port: 8081
+                      initialDelaySeconds: 5
+                      periodSeconds: 10
+                    resources:
+                      limits:
+                        cpu: 500m
+                        memory: 128Mi
+                      requests:
+                        cpu: 10m
+                        memory: 64Mi
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                        drop:
+                          - ALL
                 securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-              securityContext:
-                runAsNonRoot: true
-                seccompProfile:
-                  type: RuntimeDefault
-              serviceAccountName: operator-controller-manager
-              terminationGracePeriodSeconds: 10
+                  runAsNonRoot: true
+                  seccompProfile:
+                    type: RuntimeDefault
+                serviceAccountName: operator-controller-manager
+                terminationGracePeriodSeconds: 10
       permissions:
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - patch
-          - delete
-        - apiGroups:
-          - coordination.k8s.io
-          resources:
-          - leases
-          verbs:
-          - get
-          - list
-          - watch
-          - create
-          - update
-          - patch
-          - delete
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-          - patch
-        serviceAccountName: operator-controller-manager
+        - rules:
+            - apiGroups:
+                - ""
+              resources:
+                - configmaps
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - coordination.k8s.io
+              resources:
+                - leases
+              verbs:
+                - get
+                - list
+                - watch
+                - create
+                - update
+                - patch
+                - delete
+            - apiGroups:
+                - ""
+              resources:
+                - events
+              verbs:
+                - create
+                - patch
+          serviceAccountName: operator-controller-manager
     strategy: deployment
   installModes:
-  - supported: false
-    type: OwnNamespace
-  - supported: false
-    type: SingleNamespace
-  - supported: false
-    type: MultiNamespace
-  - supported: true
-    type: AllNamespaces
+    - supported: true
+      type: OwnNamespace
+    - supported: false
+      type: SingleNamespace
+    - supported: false
+      type: MultiNamespace
+    - supported: false
+      type: AllNamespaces
   keywords:
-  - worker
-  - demand
+    - worker
+    - demand
   links:
-  - name: Operator
-    url: https://operator.domain
+    - name: Operator
+      url: https://operator.domain
   maturity: alpha
   provider:
     name: Yextly Group
-  version: 1.0.0
+  version: 0.0.1
+  minKubeVersion: 1.22.1
