@@ -11,13 +11,21 @@ jobs:
 
     steps:
       # -------------------------------
+      # Install yq
+      # -------------------------------
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      # -------------------------------
       # Checkout repository
       # -------------------------------
       - name: Checkout
         uses: actions/checkout@v6
 
       # -------------------------------
-      # Get the operator version from file. Not from the tag
+      # Get the operator version from our file and then from the csv
       # -------------------------------
       - name: Read operator version
         id: operator-version
@@ -25,10 +33,19 @@ jobs:
           VERSION=$(cat version.txt | tr -d '[:space:]')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Read version from operator CSV
+        id: csv-version
+        run: |
+          CSV_FILE="operator/bundle/manifests/operator.clusterserviceversion.yaml"
+
+          CSV_VERSION=$(yq '.spec.version' "$CSV_FILE")
+
+          echo "csv_version=$CSV_VERSION" >> $GITHUB_OUTPUT
+
       # -------------------------------
       # Ensure we are not making any mistake
       # -------------------------------
-      - name: Ensure version matches tag
+      - name: Ensure version matches the tag
         run: |
           TAG="${GITHUB_REF_NAME#v}"   # strip leading 'v'
           FILE_VERSION="${{ steps.operator-version.outputs.version }}"
@@ -41,7 +58,20 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Version matches tag."
+          echo "✅ Versions match"
+
+
+      - name: Ensure CSV version matches the tag
+        run: |
+          echo "CSV version: ${{ steps.csv-version.outputs.csv_version }}"
+          echo "Expected version: ${{ steps.operator-version.outputs.version }}"
+
+          if [ "${{ steps.csv-version.outputs.csv_version }}" != "${{ steps.operator-version.outputs.version }}" ]; then
+            echo "❌ Versions DO NOT match!"
+            exit 1
+          fi
+
+          echo "✅ Versions match"
 
       # -------------------------------
       # Extract Go version from go.mod
