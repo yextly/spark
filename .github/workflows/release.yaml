@@ -146,6 +146,22 @@ jobs:
           make bundle-build
 
       # -------------------------------
+      # Build Operator Runtime Image
+      # -------------------------------
+      - name: Build Operator Runtime Image
+        working-directory: operator
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/spark-operator:${{ steps.operator-version.outputs.version }} .
+
+      # -------------------------------
+      # Push Operator Runtime Image
+      # -------------------------------
+      - name: Push Operator Runtime Image
+        working-directory: operator
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/spark-operator:${{ steps.operator-version.outputs.version }}
+
+      # -------------------------------
       # Generate SBOM using Syft
       # -------------------------------
       - name: Install Syft
@@ -154,10 +170,7 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          syft dir:operator/bundle \
-            --source-name "spark-operator" \
-            --source-version "${{ steps.operator-version.outputs.version }}" \
-            -o json > /tmp/sbom.json
+          syft ${{ secrets.DOCKERHUB_USERNAME }}/spark-operator:${{ steps.operator-version.outputs.version }} -o json > /tmp/sbom.json
 
       # -------------------------------
       # Push bundle image
@@ -174,25 +187,25 @@ jobs:
         run: |
           zip -r /tmp/spark-operator.zip operator/bundle
 
-      # -------------------------------
-      # Generate changelog since previous tag
-      # -------------------------------
-      - name: Generate changelog
-        id: changelog
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 "$(git rev-list --tags --skip=1 --max-count=1)" 2>/dev/null || echo "")
+      # # -------------------------------
+      # # Generate changelog since previous tag
+      # # -------------------------------
+      # - name: Generate changelog
+      #   id: changelog
+      #   run: |
+      #     PREV_TAG=$(git describe --tags --abbrev=0 "$(git rev-list --tags --skip=1 --max-count=1)" 2>/dev/null || echo "")
 
-          if [ -z "$PREV_TAG" ]; then
-            echo "No previous tag found, using initial commit."
-            git log --pretty=format:"- %s" > CHANGELOG.md
-          else
-            echo "Previous tag: $PREV_TAG"
-            git log $PREV_TAG..HEAD --pretty=format:"- %s" > CHANGELOG.md
-          fi
+      #     if [ -z "$PREV_TAG" ]; then
+      #       echo "No previous tag found, using initial commit."
+      #       git log --pretty=format:"- %s" > CHANGELOG.md
+      #     else
+      #       echo "Previous tag: $PREV_TAG"
+      #       git log $PREV_TAG..HEAD --pretty=format:"- %s" > CHANGELOG.md
+      #     fi
 
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat CHANGELOG.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      #     echo "changelog<<EOF" >> $GITHUB_OUTPUT
+      #     cat CHANGELOG.md >> $GITHUB_OUTPUT
+      #     echo "EOF" >> $GITHUB_OUTPUT
 
       # -------------------------------
       # Create GitHub Release
