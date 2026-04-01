@@ -154,7 +154,10 @@ jobs:
 
       - name: Generate SBOM
         run: |
-          syft operator/bundle -o json > /tmp/sbom.json
+          syft dir:operator/bundle \
+            --source-name "spark-operator" \
+            --source-version "${{ steps.operator-version.outputs.version }}" \
+            -o json > /tmp/sbom.json
 
       # -------------------------------
       # Push bundle image
