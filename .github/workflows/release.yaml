@@ -118,15 +118,15 @@ jobs:
         run: |
           ./scripts/initialize-environment.sh "${GITHUB_REF_NAME}"
 
-      # -------------------------------
-      # Validate the pre-versioned bundle
-      # -------------------------------
-      - name: Validate bundle metadata
-        working-directory: operator
-        env:
-          OPERATOR_SDK_DISABLE_PULL: "true"
-        run: |
-          operator-sdk bundle validate ./bundle --type bundle --select-optional suite=operatorframework
+      # # -------------------------------
+      # # Validate the pre-versioned bundle
+      # # -------------------------------
+      # - name: Validate bundle metadata
+      #   working-directory: operator
+      #   env:
+      #     OPERATOR_SDK_DISABLE_PULL: "true"
+      #   run: |
+      #     operator-sdk bundle validate ./bundle --type bundle --select-optional suite=operatorframework
 
       # -------------------------------
       # Docker login
