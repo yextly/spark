@@ -178,15 +178,17 @@ jobs:
         id: changelog
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 "$(git rev-list --tags --skip=1 --max-count=1)" 2>/dev/null || echo "")
+
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag found, using initial commit."
-            git log --pretty=format:"- %s" > /tmp/CHANGELOG.md
+            git log --pretty=format:"- %s" > CHANGELOG.md
           else
             echo "Previous tag: $PREV_TAG"
-            git log $PREV_TAG..HEAD --pretty=format:"- %s" > /tmp/CHANGELOG.md
+            git log $PREV_TAG..HEAD --pretty=format:"- %s" > CHANGELOG.md
           fi
+
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat /tmp/CHANGELOG.md >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       # -------------------------------
