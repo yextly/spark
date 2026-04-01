@@ -140,6 +140,11 @@ jobs:
       # -------------------------------
       # Build bundle image
       # -------------------------------
+      - name: Build Operator Bundle
+        working-directory: operator
+        run: |
+          make bundle
+
       - name: Build Operator Bundle Image
         working-directory: operator
         run: |
