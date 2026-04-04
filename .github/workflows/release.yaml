@@ -186,7 +186,7 @@ jobs:
       - name: Build Operator Catalog Image
         working-directory: operator
         run: |
-          make build-catalog
+          make catalog-build
 
       # -------------------------------
       # Push catalog image
