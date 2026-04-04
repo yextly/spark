@@ -181,6 +181,14 @@ jobs:
           make bundle-push
 
       # -------------------------------
+      # Push catalog image
+      # -------------------------------
+      - name: Push Operator Catalog Image
+        working-directory: operator
+        run: |
+          make catalog-push
+
+      # -------------------------------
       # Create ZIP of bundle directory
       # -------------------------------
       - name: Archive bundle directory
