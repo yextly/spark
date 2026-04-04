@@ -181,6 +181,14 @@ jobs:
           make bundle-push
 
       # -------------------------------
+      # Create catalog image
+      # -------------------------------
+      - name: Build Operator Catalog Image
+        working-directory: operator
+        run: |
+          make build-catalog
+
+      # -------------------------------
       # Push catalog image
       # -------------------------------
       - name: Push Operator Catalog Image
