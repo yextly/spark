@@ -16,11 +16,11 @@ echo "Starting patching operations on $FILE..."
 yq eval ".spec.minKubeVersion = \"$MIN_KUBE_VERSION\"" -i "$FILE"
 echo "Set minKubeVersion to $MIN_KUBE_VERSION"
 
-# 2. Set installModes: OwnNamespace to true, others to false
-# This targets the array of objects in .spec.installModes
-yq eval '.spec.installModes |= map(select(.type == "OwnNamespace").supported = true)' -i "$FILE"
-yq eval '.spec.installModes |= map(select(.type != "OwnNamespace").supported = false)' -i "$FILE"
-echo "Updated installModes: OwnNamespace set to true, all others set to false"
+# # 2. Set installModes: OwnNamespace to true, others to false
+# # This targets the array of objects in .spec.installModes
+# yq eval '.spec.installModes |= map(select(.type == "OwnNamespace").supported = true)' -i "$FILE"
+# yq eval '.spec.installModes |= map(select(.type != "OwnNamespace").supported = false)' -i "$FILE"
+# echo "Updated installModes: OwnNamespace set to true, all others set to false"
 
 # 3. Set namespace
 yq eval ".metadata.namespace = \"$NAMESPACE\"" -i "$FILE"
