@@ -1,5 +1,9 @@
 # Spark Operator
 
+[![Release Operator](https://github.com/yextly/spark/actions/workflows/release.yaml/badge.svg)](https://github.com/yextly/spark/actions/workflows/release.yaml) ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/yextly/spark?sort=semver) [![License](https://img.shields.io/github/license/yextly/spark)](LICENSE) ![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen)
+
+---
+
 The **Spark Operator** is a Kubernetes operator responsible for provisioning,
 managing, and cleaning up _ephemeral worker Jobs_ based on reusable templates.
 It introduces two Custom Resource Definitions:
