@@ -17,9 +17,12 @@ export IMG=docker.io/$USERNAME/$PROJECTNAME-operator:$VERSION
 # location where the bundle will be hosted
 export BUNDLE_IMG=docker.io/$USERNAME/$PROJECTNAME-operator-bundle:$VERSION
 
+export CATALOG_IMG=docker.io/$USERNAME/$PROJECTNAME-operator-catalog:$VERSION
+
 echo "VERSION=$VERSION"
 echo "IMG=$IMG"
 echo "BUNDLE_IMG=$BUNDLE_IMG"
+echo "CATALOG_IMG=$CATALOG_IMG"
 
 if [ -z "${GITHUB_ENV}" ]; then
   echo "Suppressed output for github"
@@ -29,4 +32,5 @@ else
   echo "PROJECTNAME=$PROJECTNAME" >> "$GITHUB_ENV"
   echo "IMG=$IMG" >> "$GITHUB_ENV"
   echo "BUNDLE_IMG=$BUNDLE_IMG" >> "$GITHUB_ENV"
+  echo "CATALOG_IMG=$CATALOG_IMG" >> "$GITHUB_ENV"
 fi
