@@ -9,18 +9,22 @@ rules:
   resources:
   - secrets
   verbs:
+  - create
   - delete
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - batch
   resources:
   - jobs
   verbs:
+  - create
   - delete
   - get
   - list
+  - update
   - watch
 - apiGroups:
   - compute.yextly.io
