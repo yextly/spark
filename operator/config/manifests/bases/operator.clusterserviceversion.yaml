@@ -42,7 +42,7 @@ spec:
   - worker
   - demand
   links:
-  - name: Operator
+  - name: Spark Operator
     url: https://operator.domain
   maturity: alpha
   provider:
