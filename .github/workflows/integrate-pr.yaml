@@ -35,6 +35,15 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # -------------------------------
+      # Get the minimum kubernetes version from file.
+      # -------------------------------
+      - name: Read MinKube version
+        id: minkube-version
+        run: |
+          VERSION=$(cat minkube.txt | tr -d '[:space:]')
+          echo "minkube=$VERSION" >> $GITHUB_OUTPUT
+
+      # -------------------------------
       # Use Go version from go.mod
       # -------------------------------
       - name: Read Go version
@@ -100,7 +109,8 @@ jobs:
       # -------------------------------
       - name: Patch manifests
         run: |
-          ./scripts/patch-csv.sh
+          CSV="operator/bundle/manifests/spark-operator.clusterserviceversion.yaml"
+          ./scripts/patch-csv.sh --file $CSV --min-kube-version ${{ steps.minkube-version.outputs.minkube }}
 
       # -------------------------------
       # Detect changes
