@@ -36,7 +36,7 @@ jobs:
       - name: Read version from operator CSV
         id: csv-version
         run: |
-          CSV_FILE="operator/bundle/manifests/operator.clusterserviceversion.yaml"
+          CSV_FILE="operator/bundle/manifests/spark-operator.clusterserviceversion.yaml"
 
           CSV_VERSION=$(yq '.spec.version' "$CSV_FILE")
 
