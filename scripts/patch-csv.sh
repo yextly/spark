@@ -2,7 +2,7 @@
 
 MIN_KUBE_VERSION="1.22.1"
 NAMESPACE="spark-operator"
-FILE="operator/bundle/manifests/operator.clusterserviceversion.yaml"
+FILE="operator/bundle/manifests/spark-operator.clusterserviceversion.yaml"
 
 # Check if file exists
 if [[ ! -f "$FILE" ]]; then
