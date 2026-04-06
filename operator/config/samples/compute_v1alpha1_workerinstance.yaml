@@ -2,7 +2,7 @@ apiVersion: compute.yextly.io/v1alpha1
 kind: WorkerInstance
 metadata:
   labels:
-    app.kubernetes.io/name: operator
+    app.kubernetes.io/name: spark-operator
     app.kubernetes.io/managed-by: kustomize
   name: workerinstance-sample
 spec:

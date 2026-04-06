@@ -4,7 +4,7 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Basic Install
-  name: operator.v0.0.0
+  name: spark-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -42,7 +42,7 @@ spec:
   - worker
   - demand
   links:
-  - name: Operator
+  - name: Spark Operator
     url: https://operator.domain
   maturity: alpha
   provider:

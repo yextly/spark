@@ -58,7 +58,7 @@ metadata:
   namespace: operators
 spec:
   channel: alpha
-  name: operator
+  name: spark-operator
   source: spark-operator-catalog
   sourceNamespace: olm
   installPlanApproval: Automatic
