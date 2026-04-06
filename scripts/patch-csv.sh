@@ -82,4 +82,11 @@ echo "Set minKubeVersion to $MIN_KUBE_VERSION"
 yq eval ".metadata.namespace = \"$NAMESPACE\"" -i "$FILE"
 echo "Set metadata.namespace to $NAMESPACE"
 
+
+# 4. Set spec.replaces if OLD_OPERATOR_VERSION is provided
+if [[ -n "$OLD_OPERATOR_VERSION" ]]; then
+  yq eval ".spec.replaces = \"spark-operator.v${OLD_OPERATOR_VERSION}\"" -i "$FILE"
+  echo "Set spec.replaces to spark-operator.v${OLD_OPERATOR_VERSION}"
+fi
+
 echo "Patching complete."
