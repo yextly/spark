@@ -108,7 +108,7 @@ jobs:
       - name: Detect changes
         id: meaningful
         run: |
-          CSV="operator/bundle/manifests/operator.clusterserviceversion.yaml"
+          CSV="operator/bundle/manifests/spark-operator.clusterserviceversion.yaml"
 
           git add .
 
