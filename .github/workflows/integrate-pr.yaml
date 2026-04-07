@@ -90,7 +90,7 @@ jobs:
           CURRENT_VERSION: ${{ steps.operator-version.outputs.version }}
 
         run: |
-          python ./scripts/get-previous-tag.py
+          python ./get-previous-tag.py
 
       # -------------------------------
       # Install Operator SDK binary
