@@ -84,6 +84,7 @@ jobs:
       # Compute old operator version
       # -------------------------------
       - name: Compute old operator version
+        working-directory: scripts
         id: old-operator-version
         env:
           CURRENT_VERSION: ${{ steps.operator-version.outputs.version }}
