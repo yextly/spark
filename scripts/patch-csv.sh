@@ -78,9 +78,9 @@ echo "Set minKubeVersion to $MIN_KUBE_VERSION"
 # yq eval '.spec.installModes |= map(select(.type != "OwnNamespace").supported = false)' -i "$FILE"
 # echo "Updated installModes: OwnNamespace set to true, all others set to false"
 
-# 3. Set namespace
-yq eval ".metadata.namespace = \"$NAMESPACE\"" -i "$FILE"
-echo "Set metadata.namespace to $NAMESPACE"
+# # 3. Set namespace
+# yq eval ".metadata.namespace = \"$NAMESPACE\"" -i "$FILE"
+# echo "Set metadata.namespace to $NAMESPACE"
 
 
 # 4. Set spec.replaces if OLD_OPERATOR_VERSION is provided
