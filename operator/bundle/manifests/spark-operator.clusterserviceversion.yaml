@@ -30,10 +30,10 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-04-07T15:35:59Z"
+    createdAt: "2026-04-07T16:31:47Z"
     operators.operatorframework.io/builder: operator-sdk-v1.42.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
-  name: spark-operator.v1.0.14
+  name: spark-operator.v1.0.15
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -150,7 +150,7 @@ spec:
                       - --health-probe-bind-address=:8081
                     command:
                       - /manager
-                    image: docker.io/yextly/spark-operator:1.0.14
+                    image: docker.io/yextly/spark-operator:1.0.15
                     livenessProbe:
                       httpGet:
                         path: /healthz
@@ -235,6 +235,6 @@ spec:
   maturity: alpha
   provider:
     name: Yextly Group
-  version: 1.0.14
+  version: 1.0.15
   minKubeVersion: 1.22.1
-  replaces: spark-operator.v1.0.13
+  replaces: spark-operator.v1.0.14
