@@ -27,6 +27,11 @@ go.work.sum
 # env file
 .env
 
+# Secrets
+env/build/kube/
+env/build/ssh/
+
+
 # Editor/IDE
 # .idea/
 # .vscode/
