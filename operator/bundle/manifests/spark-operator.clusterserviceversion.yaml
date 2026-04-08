@@ -30,8 +30,8 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2026-04-07T16:31:47Z"
-    operators.operatorframework.io/builder: operator-sdk-v1.42.1
+    createdAt: "2026-04-08T14:01:42Z"
+    operators.operatorframework.io/builder: operator-sdk-v1.42.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: spark-operator.v1.0.15
   namespace: placeholder
