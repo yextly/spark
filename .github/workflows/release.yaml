@@ -201,61 +201,19 @@ jobs:
       # -------------------------------
       - name: Archive bundle directory
         run: |
-          zip -r /tmp/spark-operator.zip operator/bundle
-
-      # # -------------------------------
-      # # Generate changelog since previous tag
-      # # -------------------------------
-      # - name: Generate changelog
-      #   id: changelog
-      #   run: |
-      #     PREV_TAG=$(git describe --tags --abbrev=0 "$(git rev-list --tags --skip=1 --max-count=1)" 2>/dev/null || echo "")
-
-      #     if [ -z "$PREV_TAG" ]; then
-      #       echo "No previous tag found, using initial commit."
-      #       git log --pretty=format:"- %s" > CHANGELOG.md
-      #     else
-      #       echo "Previous tag: $PREV_TAG"
-      #       git log $PREV_TAG..HEAD --pretty=format:"- %s" > CHANGELOG.md
-      #     fi
-
-      #     echo "changelog<<EOF" >> $GITHUB_OUTPUT
-      #     cat CHANGELOG.md >> $GITHUB_OUTPUT
-      #     echo "EOF" >> $GITHUB_OUTPUT
+          zip -r /tmp/spark-operator-bundle.zip operator/bundle
 
       # -------------------------------
-      # Create GitHub Release
+      # Create GitHub Release (The "All-in-One" Way)
       # -------------------------------
-      - name: Create GitHub Release
+      - name: Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: "Release ${{ github.ref_name }}"
-          body: |
-            ## Changelog
-            ${{ steps.changelog.outputs.changelog }}
-          draft: false
-          prerelease: false
+          name: "Release ${{ github.ref_name }}"
+          # This automatically generates a nice changelog based on commits
+          generate_release_notes: true 
+          files: |
+            /tmp/spark-operator-bundle.zip
+            /tmp/sbom.json
 
-      - name: Upload manifests
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /tmp/spark-operator.zip
-          asset_name: spark-operator.zip
-          asset_content_type: application/zip
-
-      - name: Upload SBOM
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: /tmp/sbom.json
-          asset_name: sbom.json
-          asset_content_type: application/json
