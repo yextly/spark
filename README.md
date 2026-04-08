@@ -64,6 +64,15 @@ spec:
   installPlanApproval: Automatic
 ```
 
+### Upgrade
+
+Currently the catalog contains only one operator, therefore upgrading requires the followinf steps
+
+1. Delete the `Subscription`
+1. Delete the `CatalogSource`
+1. Delete the `CSV` from the `operators` namespace only (the rest is automatically handled)
+1. Apply the new `CatalogSource` and `Subscription`
+
 ## 🧩 CRD Overview
 
 ### WorkerTemplate
