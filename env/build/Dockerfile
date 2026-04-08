@@ -1,6 +1,6 @@
 FROM golang:1.26.1
 
-ARG OPERATOR_SDK_VERSION=v1.42.1
+ARG OPERATOR_SDK_VERSION=v1.42.2
 
 # RUN DEBIAN_FRONTEND=noninteractive apt-get update \
 #     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
