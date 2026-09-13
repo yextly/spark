@@ -93,6 +93,7 @@ type WorkerInstanceStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=Prune=false"
 
 // WorkerInstance is the Schema for the workerinstances API.
 type WorkerInstance struct {

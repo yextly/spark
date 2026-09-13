@@ -40,6 +40,7 @@ type WorkerTemplateStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="argocd.argoproj.io/sync-options=Prune=false"
 
 // WorkerTemplate is the Schema for the workertemplates API.
 type WorkerTemplate struct {
