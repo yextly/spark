@@ -6,4 +6,19 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: workertemplate-sample
 spec:
-  # TODO(user): Add fields here
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: worker
+              image: busybox
+              command: ["/bin/sh", "-c", "ls /var/secrets/secret1"]
+              volumeMounts:
+                - name: volume1
+                  mountPath: /var/secrets/secret1
+                  readOnly: true
+          volumes:
+            - name: volume1
+              secret:
+                secretName: secret1
