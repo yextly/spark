@@ -44,7 +44,11 @@ type WorkerInstanceSpec struct {
 	// +kubebuilder:validation:Required
 	TemplateName string `json:"templateName,omitempty"`
 
-	// Specifies the unique identifier of the worker that will be used for Job scheduling
+	// Specifies the unique identifier of the worker that will be used for Job scheduling.
+	// Defaults to the instance name. It is lowercased, '.' and '_' become '-', other characters
+	// are dropped, and at least one letter or digit must remain. Only one live instance per
+	// workerId runs at a time: another instance with the same workerId waits (Blocked condition)
+	// until the previous instance, its Job and its Secret copies are gone.
 	// +kubebuilder:validation:Optional
 	WorkerId string `json:"workerId,omitempty"`
 
@@ -57,11 +61,23 @@ type WorkerInstanceSpec struct {
 	// the Worker becomes eligible to be deleted immediately after it finishes.
 	// Note that when using the same WorkerId value, no Job is created until the
 	// previous one is deleted; therefore, you specify a value of 0 for the ususal case
-	// and a value greater than 0 to force lingering the Job and allow inspection of the POD
+	// and a value greater than 0 to force lingering the Job and allow inspection of the POD.
+	// When set, it overrides the ttlSecondsAfterFinished of the template's Job.
 	// +kubebuilder:validation:Optional
 	TTLSecondsAfterFinished *int32 `json:"ttlSecondsAfterFinished,omitempty"`
 
-	// List of secrets belonging to the pod.
+	// List of secrets belonging to the pod, embedded as full v1 Secret objects.
+	// Each entry needs a DNS-1123 metadata.name, unique in the list; apiVersion and kind, when
+	// present, must be v1 and Secret; type, data and stringData are copied, other metadata is
+	// discarded. The operator creates one immutable copy per entry and rewrites the template's
+	// references to it in volumes[].secret, volumes[].projected.sources[].secret, and
+	// envFrom[].secretRef / env[].valueFrom.secretKeyRef of containers and initContainers.
+	// An embedded name used by imagePullSecrets or a CSI nodePublishSecretRef fails the instance.
+	// Entries the template never references, and template references with no entry (served by
+	// a namespace Secret), are reported in the SecretReferences condition.
+	// The values stay readable in this resource for its whole life by anyone who can get, list
+	// or watch WorkerInstances, and are not covered by encryption at rest configured for Secrets.
+	// Changes made after the Job exists are ignored.
 	// More info: https://kubernetes.io/docs/concepts/storage/secrets
 	// +optional
 	// +kubebuilder:validation:Optional
